@@ -7,7 +7,7 @@
   - Create core exception classes for error handling
   - _Requirements: 1.1, 5.1, 7.1, 10.5_
 
-- [ ] 2. Implement utility functions from transcribe.py
+- [x] 2. Implement utility functions from transcribe.py
   - Port timestamp formatting function (ts) with exact SRT format logic
   - Port text cleaning function (clean) with suppress phrase removal
   - Implement audio chunk export function (export_chunk) with temporary file handling
