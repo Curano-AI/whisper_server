@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "whisper-server"
+version = "0.1.0"
+description = "WhisperX FastAPI Server"
+authors = ["Nikita Matsko <nikmd1306@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12, <3.13"
+torch = "^2.7.1"
+whisperx = "^3.4.2"
+pydub = "^0.25.1"
+fastapi = "^0.116.1"
+uvicorn = {extras = ["standard"], version = "^0.35.0"}
+numba = "^0.61.2"
+openai-whisper = "^20250625"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
