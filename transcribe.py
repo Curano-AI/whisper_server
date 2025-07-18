@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""
-WhisperX-pipeline с «умным» выбором языка и выводом SRT.
+"""WhisperX-pipeline с «умным» выбором языка и выводом SRT.
 
-▪ режет ведущую тишину
-▪ из 3-х речевых сэмплов берёт язык, проходя фильтр по вероятности
-▪ tie-break → суммарная confidence
-▪ VAD + beam=2 + suppress_tokens (борьба с «Дима Торжок»)
+▪ режет ведущую тишину ▪ из 3-х речевых сэмплов берёт язык, проходя фильтр по
+вероятности ▪ tie-break → суммарная confidence ▪ VAD + beam=2 + suppress_tokens (борьба
+с «Дима Торжок»)
 """
 
 import argparse
 import os
 import tempfile
+from datetime import timedelta
+from pathlib import Path
+
 import torch
 import whisperx
 from pydub import AudioSegment, silence
 from whisper.tokenizer import get_tokenizer
-from pathlib import Path
-from datetime import timedelta
 
 # ---------- CLI ----------
 cli = argparse.ArgumentParser()

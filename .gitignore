@@ -187,7 +187,6 @@ uploads/
 temp_audio/
 
 # Model files and cache
-models/
 .cache/
 *.pt
 *.pth

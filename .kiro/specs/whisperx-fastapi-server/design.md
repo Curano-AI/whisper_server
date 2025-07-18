@@ -16,18 +16,18 @@ graph TB
     API --> Auth[Authentication Middleware]
     API --> Valid[Request Validation]
     API --> Router[API Router]
-    
+
     Router --> TranscriptionService[Transcription Service]
     Router --> ModelService[Model Management Service]
     Router --> HealthService[Health Check Service]
-    
+
     TranscriptionService --> AudioProcessor[Audio Processor]
     TranscriptionService --> LanguageDetector[Language Detector]
     TranscriptionService --> WhisperXEngine[WhisperX Engine]
-    
+
     ModelService --> ModelCache[Model Cache]
     AudioProcessor --> TempStorage[Temporary File Storage]
-    
+
     WhisperXEngine --> GPU[GPU/CPU Resources]
     ModelCache --> Memory[System Memory]
 ```
@@ -83,6 +83,7 @@ app/
 ### 2. Core Services
 
 #### TranscriptionService
+
 - **Purpose**: Orchestrates the complete transcription workflow
 - **Key Methods**:
   - `transcribe_audio()`: Main transcription endpoint logic
@@ -91,6 +92,7 @@ app/
   - `format_response()`: Response formatting for different output types
 
 #### ModelManager
+
 - **Purpose**: Manages WhisperX model lifecycle and caching
 - **Key Methods**:
   - `load_model()`: Load and cache models
@@ -99,6 +101,7 @@ app/
   - `list_models()`: Get currently loaded models
 
 #### AudioProcessor
+
 - **Purpose**: Handles audio file processing and preprocessing (from transcribe.py logic)
 - **Key Methods**:
   - `trim_leading_silence()`: Uses pydub.silence.detect_nonsilent(audio, 300, -35)
@@ -117,6 +120,7 @@ app/
   ```
 
 #### LanguageDetector
+
 - **Purpose**: Implements intelligent language detection logic (exact from transcribe.py)
 - **Key Methods**:
   - `detect_from_samples()`: Process 3 audio chunks with detector model
@@ -133,6 +137,7 @@ app/
 ### 3. Request/Response Models
 
 #### Transcription Request Model
+
 ```python
 class TranscriptionRequest(BaseModel):
     file: UploadFile
@@ -149,6 +154,7 @@ class TranscriptionRequest(BaseModel):
 ```
 
 #### Transcription Response Models
+
 ```python
 class TranscriptionSegment(BaseModel):
     id: int
@@ -175,6 +181,7 @@ class TranscriptionResponse(BaseModel):
 ### 4. API Endpoints
 
 #### Primary Endpoints
+
 - `POST /v1/audio/transcriptions` - OpenAI-compatible transcription
 - `POST /v1/audio/translations` - OpenAI-compatible translation
 - `GET /healthcheck` - Service health status
@@ -185,6 +192,7 @@ class TranscriptionResponse(BaseModel):
 #### Endpoint Specifications
 
 **POST /v1/audio/transcriptions**
+
 - Accepts multipart/form-data with audio file
 - Supports all OpenAI transcription parameters
 - Returns JSON, SRT, VTT, or plain text based on response_format
@@ -194,33 +202,34 @@ class TranscriptionResponse(BaseModel):
 ## Data Models
 
 ### Configuration Model
+
 ```python
 class AppConfig(BaseModel):
     # Server configuration
     host: str = "0.0.0.0"
     port: int = 8000
     workers: int = 1
-    
+
     # Model configuration (from transcribe.py defaults)
     default_model: str = "large-v3"
     detector_model: str = "small"
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
-    
+
     # Processing configuration (from transcribe.py)
     batch_size: int = 8
     min_prob: float = 0.6  # Language detection confidence threshold
     max_file_size: int = 100 * 1024 * 1024  # 100MB
-    
+
     # Audio processing (exact values from transcribe.py)
     silence_min_duration: int = 300  # detect_nonsilent parameter
     silence_threshold: int = -35     # detect_nonsilent parameter
     chunk_duration: int = 10_000     # 10 seconds for language detection samples
     chunk_offset: int = 5_000        # 5 second offset for sample positioning
-    
+
     # Language detection (from transcribe.py logic)
     detector_batch_size: int = 4     # batch_size for language detection
     detector_compute_type: str = "int8"  # compute_type for detector model
-    
+
     # ASR options (exact from transcribe.py asr_opts)
     asr_options: Dict[str, Any] = {
         "beam_size": 2,
@@ -228,24 +237,25 @@ class AppConfig(BaseModel):
         "temperatures": [0.0],
         "no_speech_threshold": 0.6,
     }
-    
+
     # VAD options (exact from transcribe.py vad_opts)
     vad_options: Dict[str, Any] = {
         "min_silence_duration_ms": 500,
         "speech_pad_ms": 200
     }
-    
+
     # Suppression tokens (exact from transcribe.py STOP)
     suppress_phrases: List[str] = [
         "дима торжок", "dima torzok", "dima torzhok", "субтитры подогнал"
     ]
-    
+
     # Compute type logic (from transcribe.py)
     def get_compute_type(self, device: str) -> str:
         return "float16" if device == "cuda" else "int8"
 ```
 
 ### Model Cache Structure
+
 ```python
 class ModelCacheEntry(BaseModel):
     model_name: str
@@ -259,6 +269,7 @@ class ModelCacheEntry(BaseModel):
 ## Error Handling
 
 ### Exception Hierarchy
+
 ```python
 class WhisperXAPIException(Exception):
     """Base exception for WhisperX API"""
@@ -282,6 +293,7 @@ class ValidationError(WhisperXAPIException):
 ```
 
 ### Error Response Format (OpenAI Compatible)
+
 ```python
 class ErrorResponse(BaseModel):
     error: Dict[str, Any] = {
@@ -293,6 +305,7 @@ class ErrorResponse(BaseModel):
 ```
 
 ### Error Handling Strategy
+
 1. **Input Validation**: Pydantic models with custom validators
 2. **File Upload Errors**: Size limits, format validation, corruption detection
 3. **Model Errors**: Loading failures, memory issues, device compatibility
@@ -304,30 +317,35 @@ class ErrorResponse(BaseModel):
 ### Test Categories
 
 #### 1. Unit Tests
+
 - **Service Layer Tests**: Individual service method testing
 - **Utility Function Tests**: Audio processing, formatting utilities
 - **Model Tests**: Request/response model validation
 - **Configuration Tests**: Config loading and validation
 
 #### 2. Integration Tests
+
 - **API Endpoint Tests**: Full request/response cycle testing
 - **Model Management Tests**: Loading, caching, unloading workflows
 - **Audio Processing Pipeline Tests**: End-to-end audio processing
 - **Error Handling Tests**: Exception propagation and formatting
 
 #### 3. Performance Tests
+
 - **Load Testing**: Concurrent request handling
 - **Memory Usage Tests**: Model caching efficiency
 - **Processing Time Tests**: Transcription performance benchmarks
 - **Resource Utilization Tests**: GPU/CPU usage optimization
 
 #### 4. Compatibility Tests
+
 - **OpenAI API Compatibility**: Request/response format validation
 - **Audio Format Support**: Various audio file format testing
 - **Model Compatibility**: Different WhisperX model testing
 - **Device Compatibility**: CPU/GPU processing validation
 
 ### Test Implementation Framework
+
 - **pytest**: Primary testing framework
 - **pytest-asyncio**: Async test support
 - **httpx**: HTTP client for API testing
@@ -335,12 +353,14 @@ class ErrorResponse(BaseModel):
 - **pytest-cov**: Coverage reporting
 
 ### Test Data Management
+
 - **Sample Audio Files**: Various formats, languages, qualities
 - **Mock Responses**: OpenAI API response examples
 - **Test Fixtures**: Reusable test data and configurations
 - **Performance Baselines**: Expected processing times and resource usage
 
 ### Continuous Integration
+
 - **Automated Testing**: Run on every commit/PR
 - **Coverage Requirements**: Minimum 85% code coverage
 - **Performance Regression**: Automated performance benchmarking
@@ -349,6 +369,7 @@ class ErrorResponse(BaseModel):
 ### Utility Functions (from transcribe.py)
 
 #### Timestamp Formatting
+
 ```python
 def ts(sec):
     """Convert seconds to SRT timestamp format (exact from transcribe.py)"""
@@ -359,6 +380,7 @@ def ts(sec):
 ```
 
 #### Text Cleaning
+
 ```python
 def clean(txt):
     """Remove suppressed phrases from transcription text (exact from transcribe.py)"""
@@ -369,6 +391,7 @@ def clean(txt):
 ```
 
 #### Token Suppression Setup
+
 ```python
 def get_suppress_tokens():
     """Generate suppress tokens from phrases (exact from transcribe.py)"""
@@ -379,6 +402,7 @@ def get_suppress_tokens():
 ```
 
 #### Audio Chunk Export
+
 ```python
 def export_chunk(audio: AudioSegment, start_ms: int, dur: int = 10_000) -> str:
     """Export audio chunk to temporary WAV file (exact from transcribe.py)"""
