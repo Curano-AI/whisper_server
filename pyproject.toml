@@ -109,6 +109,8 @@ select = [
     "PL",  # pylint
     "RUF", # ruff-specific rules
 ]
+fixable = ["ALL"]
+unfixable = []
 ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
@@ -127,6 +129,12 @@ ignore = [
 "__init__.py" = ["F401"]
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 "transcribe.py" = ["ALL"]  # Skip all checks for original transcribe.py
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 # MyPy configuration
 [tool.mypy]
