@@ -6,6 +6,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+from typing import cast
 
 import whisperx
 from pydub import AudioSegment
@@ -198,7 +199,8 @@ class LanguageDetector:
     ) -> str:
         """Export audio chunk to temporary WAV file."""
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            audio[start_ms : start_ms + duration].export(tmp.name, format="wav")
+            segment = cast("AudioSegment", audio[start_ms : start_ms + duration])
+            segment.export(tmp.name, format="wav")
             logger.debug(
                 f"Exported audio chunk: {tmp.name} (start={start_ms}ms, "
                 f"duration={duration}ms)"
