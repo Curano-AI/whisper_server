@@ -3,11 +3,11 @@
     "ruff.enable": true,
     "ruff.lint.enable": true,
     "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnSave": true,
+        "editor.formatOnPaste": true,
         "editor.codeActionsOnSave": {
-            "source.fixAll.ruff": "explicit",
-            "source.organizeImports.ruff": "explicit"
+            "source.unusedImports": "always"
         }
     },
     "editor.rulers": [
