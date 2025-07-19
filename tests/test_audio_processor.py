@@ -3,6 +3,7 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -412,7 +413,7 @@ class TestAudioProcessorIntegration:
         while len(audio) < duration_ms:
             audio += tone
 
-        return audio[:duration_ms]
+        return cast("AudioSegment", audio[:duration_ms])
 
     def test_real_audio_processing_pipeline(self):
         """Test the complete pipeline with real audio data."""
