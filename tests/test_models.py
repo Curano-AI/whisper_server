@@ -284,6 +284,7 @@ class TestResponseModels:
         )
 
         assert response.text == "Hello world"
+        assert response.segments is not None
         assert len(response.segments) == 1
         assert response.language == "en"
 
@@ -398,6 +399,7 @@ class TestResponseModels:
         )
 
         assert response.success is True
+        assert response.model_info is not None
         assert response.model_info.model_name == "large-v3"
         assert response.model_info.memory_usage_mb == 1024.5
 
