@@ -1,10 +1,13 @@
 # Test Summary
-Passed: 116; failed: 0
+Passed: 119; failed: 0
 ## Passed
 - tests/test_api_models.py::test_list_models_empty
 - tests/test_api_models.py::test_load_model_success
 - tests/test_api_models.py::test_load_model_error
 - tests/test_api_models.py::test_unload_model_success
+- tests/test_api_transcriptions.py::test_transcription_json_success
+- tests/test_api_transcriptions.py::test_transcription_text_format
+- tests/test_api_transcriptions.py::test_transcription_file_too_large
 - tests/test_audio_processor.py::TestAudioProcessor::test_init
 - tests/test_audio_processor.py::TestAudioProcessor::test_supported_formats
 - tests/test_audio_processor.py::TestAudioProcessor::test_validate_audio_file_success

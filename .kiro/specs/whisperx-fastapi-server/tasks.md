@@ -61,7 +61,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 9.1, 9.2, 9.3, 9.4, 9.5_
   - Implemented TranscriptionService with formatting and tests
 
-- [ ] 8. Implement POST /v1/audio/transcriptions endpoint
+- [x] 8. Implement POST /v1/audio/transcriptions endpoint
   - Implement file upload handling with size limits and validation
   - Add request parameter validation and processing
   - Integrate with TranscriptionService for audio processing
@@ -69,6 +69,7 @@
   - Add proper error handling and OpenAI-compatible error responses
   - Write endpoint tests with various input scenarios
   - _Requirements: 1.1, 1.4, 2.1, 2.3, 4.1, 4.2, 4.3, 4.4, 7.1, 7.2, 7.3_
+  - Implemented transcription endpoint with validation and tests
 
 - [x] 9. Implement model management endpoints
   - Implement GET /models/list endpoint for loaded models
