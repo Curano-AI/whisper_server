@@ -7,7 +7,7 @@ audio processing logic from transcribe.py.
 
 import tempfile
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from pydub import AudioSegment, silence
 
@@ -145,7 +145,7 @@ class AudioProcessor:
             lead_ms = nonsilent_ranges[0][0] if nonsilent_ranges else 0
 
             # Trim the audio from the first non-silent part
-            trimmed_audio = audio[lead_ms:]
+            trimmed_audio = cast("AudioSegment", audio[lead_ms:])
 
             return trimmed_audio, lead_ms
 
