@@ -8,6 +8,7 @@ import os
 import tempfile
 from datetime import timedelta
 from pathlib import Path
+from typing import cast
 
 from pydub import AudioSegment
 from whisper.tokenizer import get_tokenizer
@@ -94,7 +95,8 @@ def export_chunk(audio: AudioSegment, start_ms: int, dur: int = 10_000) -> str:
         The caller is responsible for cleaning up the temporary file.
     """
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-        audio[start_ms : start_ms + dur].export(tmp.name, format="wav")
+        chunk = cast("AudioSegment", audio[start_ms : start_ms + dur])
+        chunk.export(tmp.name, format="wav")
         return tmp.name
 
 
