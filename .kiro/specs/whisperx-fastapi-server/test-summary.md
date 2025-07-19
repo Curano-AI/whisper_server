@@ -1,5 +1,5 @@
 # Test Summary
-Passed: 119; failed: 0
+Passed: 121; failed: 0
 ## Passed
 - tests/test_api_models.py::test_list_models_empty
 - tests/test_api_models.py::test_load_model_success
@@ -59,6 +59,7 @@ Passed: 119; failed: 0
 - tests/test_language_detector.py::TestLanguageDetector::test_detect_from_samples_empty_chunks_list
 - tests/test_language_detector.py::TestLanguageDetector::test_detect_from_samples_all_errors
 - tests/test_language_detector.py::TestLanguageDetector::test_detect_language_return_value_structure
+- tests/test_language_detector.py::TestLanguageDetector::test_export_chunk_cleanup
 - tests/test_model_manager.py::TestModelManager::test_load_model_success
 - tests/test_model_manager.py::TestModelManager::test_load_model_failure
 - tests/test_model_manager.py::TestModelManager::test_get_model
@@ -120,4 +121,6 @@ Passed: 119; failed: 0
 - tests/test_transcribe_utils.py::TestDefaultSuppressPhrases::test_default_suppress_phrases_immutable
 - tests/test_transcription_service.py::test_transcribe_json
 - tests/test_transcription_service.py::test_transcribe_formats
+- tests/test_api_health.py::test_healthcheck_success
+- tests/test_api_health.py::test_healthcheck_error
 ## Failed
