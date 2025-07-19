@@ -69,7 +69,7 @@
   - Write endpoint tests with various input scenarios
   - _Requirements: 1.1, 1.4, 2.1, 2.3, 4.1, 4.2, 4.3, 4.4, 7.1, 7.2, 7.3_
 
-- [ ] 9. Implement model management endpoints
+- [x] 9. Implement model management endpoints
   - Implement GET /models/list endpoint for loaded models
   - Create POST /models/load endpoint for loading specific models
   - Add POST /models/unload endpoint for memory management
@@ -77,6 +77,7 @@
   - Add model status and metadata in responses
   - Write tests for model management API endpoints
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - Implemented model management endpoints with tests
 
 - [ ] 10. Implement health check and monitoring endpoints
   - Create GET /healthcheck endpoint with service status
