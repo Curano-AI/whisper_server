@@ -27,7 +27,7 @@ async def list_models() -> LoadedModelsResponse:
     loaded_models: list[LoadedModelInfo] = []
     total_mem = 0.0
     for name in model_manager.list_models():
-        entry = model_manager._models[name]
+        entry = model_manager.get_model_info(name)
         memory_usage = None  # AICODE-NOTE: memory tracking not implemented yet
         if memory_usage:
             total_mem += memory_usage
@@ -59,7 +59,7 @@ async def load_model(request: ModelLoadRequest) -> JSONResponse | ModelLoadRespo
         model_manager.load_model(
             request.model_name, request.device, request.compute_type
         )
-        entry = model_manager._models[request.model_name]
+        entry = model_manager.get_model_info(request.model_name)
         model_info = LoadedModelInfo(
             model_name=request.model_name,
             device=entry["device"],

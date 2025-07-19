@@ -81,6 +81,12 @@ class ModelManager:
         entry["last_used"] = datetime.utcnow()
         return entry["model"]
 
+    def get_model_info(self, model_name: str | None = None) -> dict[str, Any]:
+        """Return metadata dictionary for a loaded model."""
+        name = model_name or self.settings.default_model
+        self.get_model(name)
+        return self._models[name]
+
     def unload_model(self, model_name: str) -> None:
         """Unload a model and free associated memory."""
         entry = self._models.pop(model_name, None)

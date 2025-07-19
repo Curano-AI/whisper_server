@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from app.api.v1 import models as models_api
+from app.core.exceptions import ModelLoadError
 from app.main import app
 from app.services.model_manager import ModelManager
 
@@ -52,9 +53,8 @@ def test_load_model_success(monkeypatch) -> None:
 
 def test_load_model_error(monkeypatch) -> None:
     """POST /models/load returns error when manager raises ModelLoadError."""
-    from app.core.exceptions import ModelLoadError
 
-    def raise_error(*args, **kwargs):
+    def raise_error(*_args, **_kwargs):
         raise ModelLoadError("boom", model_name="bad", error_code="load_failed")
 
     monkeypatch.setattr(models_api.model_manager, "load_model", raise_error)
@@ -64,7 +64,7 @@ def test_load_model_error(monkeypatch) -> None:
     assert data["error"]["code"] == "load_failed"
 
 
-def test_unload_model_success(monkeypatch) -> None:
+def test_unload_model_success() -> None:
     """POST /models/unload unloads an existing model."""
     mm = models_api.model_manager
     mm._models["small"] = {
