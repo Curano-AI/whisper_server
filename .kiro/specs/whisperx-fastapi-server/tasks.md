@@ -15,7 +15,7 @@
   - Write unit tests for all utility functions
   - _Requirements: 6.2, 6.3, 9.3_
 
-- [ ] 3. Create Pydantic request and response models
+- [x] 3. Create Pydantic request and response models
   - Implement OpenAI-compatible transcription request model with all parameters
   - Create transcription response models matching OpenAI schema exactly
   - Add validation for file uploads, model names, and parameter ranges

@@ -1,1 +1,55 @@
-"""Pydantic models - to be implemented in task 3"""
+"""Pydantic models for OpenAI-compatible transcription API."""
+
+from .requests import (
+    ModelLoadRequest,
+    ModelUnloadRequest,
+    TranscriptionRequest,
+    TranslationRequest,
+)
+from .responses import (
+    ErrorDetail,
+    ErrorResponse,
+    HealthCheckResponse,
+    HealthStatus,
+    LoadedModelInfo,
+    LoadedModelsResponse,
+    ModelInfo,
+    ModelListResponse,
+    ModelLoadResponse,
+    ModelUnloadResponse,
+    ServiceHealth,
+    SystemResources,
+    TranscriptionOutput,
+    TranscriptionResponse,
+    TranscriptionSegment,
+    TranslationOutput,
+    TranslationResponse,
+    VerboseTranscriptionResponse,
+    Word,
+)
+
+__all__ = [
+    "ErrorDetail",
+    "ErrorResponse",
+    "HealthCheckResponse",
+    "HealthStatus",
+    "LoadedModelInfo",
+    "LoadedModelsResponse",
+    "ModelInfo",
+    "ModelListResponse",
+    "ModelLoadRequest",
+    "ModelLoadResponse",
+    "ModelUnloadRequest",
+    "ModelUnloadResponse",
+    "ServiceHealth",
+    "SystemResources",
+    "TranscriptionOutput",
+    "TranscriptionRequest",
+    "TranscriptionResponse",
+    "TranscriptionSegment",
+    "TranslationOutput",
+    "TranslationRequest",
+    "TranslationResponse",
+    "VerboseTranscriptionResponse",
+    "Word",
+]
