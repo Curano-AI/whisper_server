@@ -1,6 +1,5 @@
 """Tests for model management API endpoints."""
 
-from datetime import datetime
 from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
@@ -29,20 +28,10 @@ def test_list_models_empty() -> None:
 
 def test_load_model_success(monkeypatch) -> None:
     """POST /models/load loads a model and returns metadata."""
-    mm = models_api.model_manager
-
-    def fake_load(model_name: str, device=None, compute_type=None):
-        mm._models[model_name] = {
-            "model": Mock(),
-            "device": device or mm.settings.device,
-            "compute_type": compute_type
-            or mm.settings.get_compute_type(device or mm.settings.device),
-            "load_time": datetime.utcnow(),
-            "last_used": datetime.utcnow(),
-        }
-        return mm._models[model_name]["model"]
-
-    monkeypatch.setattr(mm, "load_model", fake_load)
+    mock_model = Mock()
+    monkeypatch.setattr(
+        "app.services.model_manager.whisperx.load_model", lambda *_, **__: mock_model
+    )
 
     response = client.post("/models/load", json={"model_name": "small"})
     assert response.status_code == 200
@@ -74,4 +63,4 @@ def test_unload_model_success() -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert "small" not in mm._models
+    assert "small" not in mm.list_models()
