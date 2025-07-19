@@ -67,13 +67,8 @@ def test_load_model_error(monkeypatch) -> None:
 def test_unload_model_success() -> None:
     """POST /models/unload unloads an existing model."""
     mm = models_api.model_manager
-    mm._models["small"] = {
-        "model": Mock(),
-        "device": "cpu",
-        "compute_type": "int8",
-        "load_time": datetime.utcnow(),
-        "last_used": datetime.utcnow(),
-    }
+    # Load a dummy model using the public API instead of touching internals
+    mm.load_model("small")
 
     response = client.post("/models/unload", json={"model_name": "small"})
     assert response.status_code == 200

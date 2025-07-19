@@ -1,0 +1,1 @@
+"""Stub whisper package."""
