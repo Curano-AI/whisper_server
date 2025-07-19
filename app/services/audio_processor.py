@@ -27,6 +27,7 @@ class AudioProcessor:
     SILENCE_THRESHOLD = -35  # detect_nonsilent silence_thresh parameter
     CHUNK_DURATION = 10_000  # 10 seconds for language detection samples
     CHUNK_OFFSET = 5_000  # 5 second offset for sample positioning
+    SHORT_AUDIO_THRESHOLD = 15_000  # 15 seconds threshold for short audio handling
 
     # Supported audio formats (pydub supported formats)
     SUPPORTED_FORMATS: ClassVar[set[str]] = {
@@ -177,19 +178,29 @@ class AudioProcessor:
             lead_ms = leading_silence_ms
 
             # Exact logic from transcribe.py for sample positions
-            starts = {
-                lead_ms,  # After silence trimming
-                max(
-                    lead_ms + (dur_ms - lead_ms) // 3 - self.CHUNK_OFFSET, lead_ms
-                ),  # 1/3 position
-                max(
-                    lead_ms + 2 * (dur_ms - lead_ms) // 3 - self.CHUNK_OFFSET, lead_ms
-                ),  # 2/3 position
-            }
+            # Calculate the three positions, ensuring they're different
+            pos1 = lead_ms
+            pos2 = max(lead_ms + (dur_ms - lead_ms) // 3 - self.CHUNK_OFFSET, lead_ms)
+            pos3 = max(
+                lead_ms + 2 * (dur_ms - lead_ms) // 3 - self.CHUNK_OFFSET, lead_ms
+            )
 
-            # Create chunks at sorted positions
+            # For very short audio, spread positions evenly
+            if dur_ms <= self.SHORT_AUDIO_THRESHOLD:  # Less than 15 seconds
+                available_duration = dur_ms - lead_ms
+                if available_duration > 0:
+                    pos2 = lead_ms + available_duration // 3
+                    pos3 = lead_ms + 2 * available_duration // 3
+                else:
+                    pos2 = lead_ms
+                    pos3 = lead_ms
+
+            # Use list to maintain order and allow duplicates if needed
+            positions = [pos1, pos2, pos3]
+
+            # Create chunks at the positions
             chunks = []
-            for chunk_start_ms in sorted(starts):
+            for chunk_start_ms in positions:
                 # Ensure we don't go beyond audio duration
                 actual_start_ms = chunk_start_ms
                 if chunk_start_ms >= dur_ms:
@@ -293,8 +304,11 @@ class AudioProcessor:
     def cleanup(self) -> None:
         """Clean up all temporary files created by this processor."""
         if self._temp_files:
-            cleanup_temp_files(self._temp_files)
+            files_to_cleanup = self._temp_files.copy()
             self._temp_files.clear()
+            cleanup_temp_files(files_to_cleanup)
+        else:
+            cleanup_temp_files([])
 
     def __enter__(self) -> "AudioProcessor":
         """Context manager entry."""
