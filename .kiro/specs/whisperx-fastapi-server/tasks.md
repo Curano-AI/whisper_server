@@ -23,7 +23,7 @@
   - Write validation tests for all models
   - _Requirements: 2.1, 2.2, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 4. Implement AudioProcessor service
+- [x] 4. Implement AudioProcessor service
   - Create audio file validation and loading functionality
   - Implement leading silence trimming using pydub with exact parameters (300, -35)
   - Create strategic audio sample extraction for language detection (3 positions)
@@ -59,25 +59,16 @@
   - Write integration tests for complete transcription workflow
   - _Requirements: 1.1, 1.2, 1.3, 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 8. Create FastAPI application and main endpoints
-  - Initialize FastAPI application with proper configuration
-  - Implement POST /v1/audio/transcriptions endpoint with OpenAI compatibility
-  - Add file upload handling with size limits and validation
-  - Create error handling middleware for consistent error responses
-  - Implement request logging and performance monitoring
-  - Write API endpoint tests with various input scenarios
-  - _Requirements: 1.1, 1.4, 2.1, 2.3, 7.1, 7.2, 7.3, 10.1, 10.2_
+- [ ] 8. Implement POST /v1/audio/transcriptions endpoint
+  - Implement file upload handling with size limits and validation
+  - Add request parameter validation and processing
+  - Integrate with TranscriptionService for audio processing
+  - Create response formatting for different output types (JSON, SRT, VTT, text)
+  - Add proper error handling and OpenAI-compatible error responses
+  - Write endpoint tests with various input scenarios
+  - _Requirements: 1.1, 1.4, 2.1, 2.3, 4.1, 4.2, 4.3, 4.4, 7.1, 7.2, 7.3_
 
-- [ ] 9. Implement response formatting and output generation
-  - Create JSON response formatter matching OpenAI schema
-  - Implement SRT format generation using ts() function from transcribe.py
-  - Add VTT format support with proper timestamp formatting
-  - Create plain text response formatter
-  - Add response validation and error handling
-  - Write tests for all response format outputs
-  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-
-- [ ] 10. Add model management endpoints
+- [ ] 9. Implement model management endpoints
   - Implement GET /models/list endpoint for loaded models
   - Create POST /models/load endpoint for loading specific models
   - Add POST /models/unload endpoint for memory management
@@ -86,7 +77,7 @@
   - Write tests for model management API endpoints
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 11. Implement health check and monitoring endpoints
+- [ ] 10. Implement health check and monitoring endpoints
   - Create GET /healthcheck endpoint with service status
   - Add dependency health checks (models, system resources)
   - Implement system resource monitoring (memory, GPU)
@@ -95,7 +86,7 @@
   - Write tests for health monitoring functionality
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 12. Add comprehensive error handling and logging
+- [ ] 11. Add comprehensive error handling middleware
   - Implement custom exception handlers for all error types
   - Create OpenAI-compatible error response formatting
   - Add detailed logging for requests, errors, and performance metrics
@@ -104,16 +95,7 @@
   - Write tests for error handling scenarios
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 13. Implement configuration management and validation
-  - Create environment-based configuration loading
-  - Add configuration validation with proper error messages
-  - Implement runtime configuration updates where appropriate
-  - Create configuration documentation and examples
-  - Add configuration testing and validation
-  - Write tests for configuration management
-  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
-
-- [ ] 14. Add comprehensive testing suite
+- [ ] 12. Add comprehensive testing suite
   - Create unit tests for all service classes and utility functions
   - Implement integration tests for complete API workflows
   - Add performance tests for transcription processing times
@@ -122,7 +104,7 @@
   - Add test fixtures and mock data for consistent testing
   - _Requirements: All requirements validation_
 
-- [ ] 15. Create application startup and dependency injection
+- [ ] 13. Create application startup and dependency injection
   - Implement FastAPI startup events for model preloading
   - Create dependency injection for services and configuration
   - Add graceful shutdown handling for cleanup
@@ -131,7 +113,7 @@
   - Write tests for application lifecycle events
   - _Requirements: 5.1, 8.1, 10.5_
 
-- [ ] 16. Add production deployment configuration
+- [ ] 14. Add production deployment configuration
   - Create Docker configuration for containerized deployment
   - Implement environment variable configuration
   - Add production logging and monitoring setup
