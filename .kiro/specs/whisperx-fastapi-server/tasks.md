@@ -51,7 +51,7 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   - Implemented ModelManager service with load/unload and caching
 
-- [ ] 7. Implement core TranscriptionService
+- [x] 7. Implement core TranscriptionService
   - Create main transcription orchestration logic
   - Integrate audio preprocessing, language detection, and model inference
   - Implement ASR options setup with exact transcribe.py parameters
@@ -59,6 +59,7 @@
   - Create response formatting for different output types
   - Write integration tests for complete transcription workflow
   - _Requirements: 1.1, 1.2, 1.3, 9.1, 9.2, 9.3, 9.4, 9.5_
+  - Implemented TranscriptionService with formatting and tests
 
 - [ ] 8. Implement POST /v1/audio/transcriptions endpoint
   - Implement file upload handling with size limits and validation

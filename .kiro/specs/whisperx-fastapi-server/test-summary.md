@@ -1,5 +1,5 @@
 # Test Summary
-Passed: 114; failed: 0
+Passed: 116; failed: 0
 ## Passed
 - tests/test_api_models.py::test_list_models_empty
 - tests/test_api_models.py::test_load_model_success
@@ -115,4 +115,6 @@ Passed: 114; failed: 0
 - tests/test_transcribe_utils.py::TestCleanupTempFiles::test_cleanup_empty_list
 - tests/test_transcribe_utils.py::TestDefaultSuppressPhrases::test_default_suppress_phrases_content
 - tests/test_transcribe_utils.py::TestDefaultSuppressPhrases::test_default_suppress_phrases_immutable
+- tests/test_transcription_service.py::test_transcribe_json
+- tests/test_transcription_service.py::test_transcribe_formats
 ## Failed
