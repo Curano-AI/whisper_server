@@ -32,7 +32,7 @@
   - Write unit tests for audio processing functions
   - _Requirements: 6.1, 6.4, 3.1_
 
-- [ ] 5. Implement LanguageDetector service
+- [x] 5. Implement LanguageDetector service
   - Create language detection using detector model with exact transcribe.py logic
   - Implement confidence-based filtering with min_prob threshold (0.6)
   - Create vote counting and confidence sum tie-breaking algorithm
