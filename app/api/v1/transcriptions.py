@@ -41,7 +41,7 @@ async def create_transcription(
     if len(data) > settings.max_file_size:
         error = ErrorResponse(
             error=ErrorDetail(
-                message=(f"File too large. Limit {settings.max_file_size} bytes"),
+                message=f"File too large. Limit {settings.max_file_size} bytes",
                 type="invalid_request_error",
                 param="file",
                 code="file_too_large",
