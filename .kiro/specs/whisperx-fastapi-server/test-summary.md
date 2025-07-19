@@ -1,5 +1,5 @@
 # Test Summary
-Passed: 110; failed: 0
+Passed: 114; failed: 0
 ## Passed
 - tests.test_audio_processor.TestAudioProcessor.test_init
 - tests.test_audio_processor.TestAudioProcessor.test_supported_formats
@@ -111,4 +111,8 @@ Passed: 110; failed: 0
 - tests.test_transcribe_utils.TestCleanupTempFiles.test_cleanup_empty_list
 - tests.test_transcribe_utils.TestDefaultSuppressPhrases.test_default_suppress_phrases_content
 - tests.test_transcribe_utils.TestDefaultSuppressPhrases.test_default_suppress_phrases_immutable
+- tests.test_api_models.test_list_models_empty
+- tests.test_api_models.test_load_model_success
+- tests.test_api_models.test_load_model_error
+- tests.test_api_models.test_unload_model_success
 ## Failed
