@@ -17,8 +17,15 @@ client = TestClient(app)
 
 
 def setup_function() -> None:
-    """Reset service instance before each test."""
-    health_api.service = Mock()
+    """Override dependency with a mock service for each test."""
+    mock_service = Mock()
+    app.dependency_overrides[health_api.get_health_service] = lambda: mock_service
+    health_api.mock_service = mock_service
+
+
+def teardown_function() -> None:
+    """Clear dependency overrides after each test."""
+    app.dependency_overrides.clear()
 
 
 def _dummy_response() -> HealthCheckResponse:
@@ -42,18 +49,18 @@ def _dummy_response() -> HealthCheckResponse:
 def test_healthcheck_success() -> None:
     """GET /healthcheck returns health info."""
     dummy = _dummy_response()
-    health_api.service.get_health.return_value = dummy
+    health_api.mock_service.get_health.return_value = dummy
 
     response = client.get("/healthcheck")
 
     assert response.status_code == 200
     assert response.json()["health"]["status"] == "healthy"
-    health_api.service.get_health.assert_called_once()
+    health_api.mock_service.get_health.assert_called_once()
 
 
 def test_healthcheck_error() -> None:
     """Service error results in 503 response."""
-    health_api.service.get_health.side_effect = ResourceError("boom")
+    health_api.mock_service.get_health.side_effect = ResourceError("boom")
 
     response = client.get("/healthcheck")
 

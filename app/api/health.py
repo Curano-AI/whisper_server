@@ -1,6 +1,6 @@
 """Health check API endpoints."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions import ResourceError
@@ -9,8 +9,10 @@ from app.services import HealthService
 
 router = APIRouter()
 
-# Global service instance used by all requests
-service = HealthService()
+
+def get_health_service() -> HealthService:
+    """Create a new :class:`HealthService` instance."""
+    return HealthService()
 
 
 @router.get(
@@ -18,7 +20,9 @@ service = HealthService()
     response_model=HealthCheckResponse,
     responses={503: {"model": ErrorResponse}},
 )
-async def health_check() -> JSONResponse | HealthCheckResponse:
+async def health_check(
+    service: HealthService = Depends(get_health_service),
+) -> JSONResponse | HealthCheckResponse:
     """Return application health status."""
     try:
         return service.get_health()
