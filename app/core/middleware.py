@@ -21,20 +21,26 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         start = time.perf_counter()
         logger.info("%s %s", request.method, request.url.path)
-        response: Response | None = None
+
         try:
             response = await call_next(request)
-        except Exception:
-            logger.exception("Request error")
-            raise
-        finally:
             duration = (time.perf_counter() - start) * 1000
-            status_code = response.status_code if response else 500
             logger.info(
                 "%s %s - %s %.2fms",
                 request.method,
                 request.url.path,
-                status_code,
+                response.status_code,
                 duration,
             )
-        return response
+            return response
+        except Exception:
+            duration = (time.perf_counter() - start) * 1000
+            logger.exception("Request error")
+            logger.info(
+                "%s %s - %s %.2fms",
+                request.method,
+                request.url.path,
+                500,
+                duration,
+            )
+            raise
