@@ -52,9 +52,9 @@ class AppConfig(BaseSettings):
 
     # Language detection
     detector_batch_size: int | None = Field(
-        default=None,
+        default=4,
         alias="DETECTOR_BATCH_SIZE",
-        description="batch_size for language detection; defaults to BATCH_SIZE",
+        description="batch_size for language detection (transcribe.py: 4)",
     )
     detector_compute_type: str = Field(
         default="int8", description="compute_type for detector model"
