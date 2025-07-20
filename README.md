@@ -63,3 +63,14 @@ Once running, visit:
 
 - OpenAPI docs: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+## Deployment
+
+Build the Docker image and run the container:
+
+```bash
+docker build -t whisperx-server .
+docker run --env-file .env -p 8000:8000 whisperx-server
+```
+
+The container reads environment variables from `.env`. Configure values such as `DEFAULT_MODEL` or `LOG_LEVEL` before building or supply them at runtime.

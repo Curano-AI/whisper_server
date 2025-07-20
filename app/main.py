@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.error_handlers import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import LoggingMiddleware
+from app.core.security import SecurityHeadersMiddleware
 from app.services import (
     AudioProcessor,
     LanguageDetector,
@@ -35,6 +36,7 @@ app = FastAPI(
 
 # Register middleware and exception handlers
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 register_exception_handlers(app)
 
 # Include API routers

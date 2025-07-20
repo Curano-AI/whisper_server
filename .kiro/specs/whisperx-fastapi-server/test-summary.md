@@ -1,5 +1,5 @@
 # Test Summary
-Passed: 126; failed: 0
+Passed: 128; failed: 0
 ## Passed
 - tests/test_api_models.py::test_list_models_empty
 - tests/test_api_models.py::test_load_model_success
@@ -128,4 +128,6 @@ Passed: 126; failed: 0
 - tests/test_openai_compatibility.py::test_openai_client_transcription
 - tests/test_app_lifecycle.py::test_startup_loads_default_model
 - tests/test_performance.py::test_transcription_speed
+- tests/test_deployment.py::test_env_overrides
+- tests/test_deployment.py::test_security_headers
 ## Failed

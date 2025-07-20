@@ -122,7 +122,7 @@
   - Implemented startup events and DI with lifecycle tests
   - Improved startup error handling with graceful failure
 
-- [ ] 14. Add production deployment configuration
+- [x] 14. Add production deployment configuration
   - Create Docker configuration for containerized deployment
   - Implement environment variable configuration
   - Add production logging and monitoring setup
@@ -130,3 +130,5 @@
   - Implement security best practices and headers
   - Write deployment validation tests
   - _Requirements: 8.1, 8.2, 10.1, 10.2_
+  - Added Dockerfile, env config, security headers, deployment docs and tests
+  - Clarified detector batch size precedence and enhanced Dockerfile security
