@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg su-exec && \
+    apt-get install -y --no-install-recommends ffmpeg gosu && \
     rm -rf /var/lib/apt/lists/*
 
 # Add non-root user

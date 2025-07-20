@@ -8,4 +8,4 @@ set -e
 chown -R appuser:appuser /home/appuser/.cache
 
 # Execute the main command (CMD) as the non-root 'appuser'.
-exec su-exec appuser "$@"
+exec gosu appuser "$@"
