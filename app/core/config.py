@@ -51,8 +51,10 @@ class AppConfig(BaseSettings):
     )
 
     # Language detection
-    detector_batch_size: int = Field(
-        default=4, description="batch_size for language detection"
+    detector_batch_size: int | None = Field(
+        default=None,
+        alias="DETECTOR_BATCH_SIZE",
+        description="batch_size for language detection; defaults to BATCH_SIZE",
     )
     detector_compute_type: str = Field(
         default="int8", description="compute_type for detector model"
@@ -102,6 +104,10 @@ class AppConfig(BaseSettings):
             "min_silence_duration_ms": self.vad_min_silence_duration_ms,
             "speech_pad_ms": self.vad_speech_pad_ms,
         }
+
+    def get_detector_batch_size(self) -> int:
+        """Return effective detector batch size."""
+        return self.detector_batch_size or self.batch_size
 
 
 @lru_cache

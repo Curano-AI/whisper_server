@@ -131,3 +131,4 @@
   - Write deployment validation tests
   - _Requirements: 8.1, 8.2, 10.1, 10.2_
   - Added Dockerfile, env config, security headers, deployment docs and tests
+  - Clarified detector batch size precedence and enhanced Dockerfile security

@@ -19,3 +19,8 @@ def test_security_headers() -> None:
     assert resp.headers.get("X-Frame-Options") == "DENY"
     assert resp.headers.get("Referrer-Policy") == "no-referrer"
     assert resp.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert (
+        resp.headers.get("Strict-Transport-Security")
+        == "max-age=63072000; includeSubDomains"
+    )
+    assert resp.headers.get("Content-Security-Policy") == "default-src 'self'"

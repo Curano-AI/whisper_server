@@ -64,7 +64,7 @@ class LanguageDetector:
                 # Transcribe chunk to detect language
                 result = detector.transcribe(
                     wav_path,
-                    batch_size=self.settings.detector_batch_size,
+                    batch_size=self.settings.get_detector_batch_size(),
                     verbose=False,
                 )
 
@@ -122,7 +122,7 @@ class LanguageDetector:
             try:
                 result = detector.transcribe(
                     wav_path,
-                    batch_size=self.settings.detector_batch_size,
+                    batch_size=self.settings.get_detector_batch_size(),
                     verbose=False,
                 )
 
