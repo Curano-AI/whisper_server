@@ -25,6 +25,7 @@ RUN poetry config virtualenvs.create false && \
 COPY . .
 
 RUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /home/appuser
 
 USER appuser
 
