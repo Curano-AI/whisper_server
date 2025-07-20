@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import torch
@@ -65,8 +65,8 @@ class ModelManager:
             "model": model,
             "device": target_device,
             "compute_type": ctype,
-            "load_time": datetime.utcnow(),
-            "last_used": datetime.utcnow(),
+            "load_time": datetime.now(UTC),
+            "last_used": datetime.now(UTC),
         }
         return model
 
@@ -78,7 +78,7 @@ class ModelManager:
             raise ModelLoadError(
                 f"Model not loaded: {name}", model_name=name, error_code="not_loaded"
             )
-        entry["last_used"] = datetime.utcnow()
+        entry["last_used"] = datetime.now(UTC)
         return entry["model"]
 
     def get_model_info(self, model_name: str | None = None) -> dict[str, Any]:

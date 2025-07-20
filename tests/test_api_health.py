@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -36,7 +36,7 @@ def client(mock_health_service):
 
 def _dummy_response() -> HealthCheckResponse:
     health = HealthStatus(
-        status="healthy", timestamp=datetime.utcnow(), version="1", uptime_seconds=1.0
+        status="healthy", timestamp=datetime.now(UTC), version="1", uptime_seconds=1.0
     )
     service = ServiceHealth(name="transcription", status="healthy")
     system = SystemResources(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 import psutil
 import torch
@@ -64,7 +64,7 @@ class HealthService:
         system = self._get_system_resources()
         health = HealthStatus(
             status="healthy",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             version=self.version,
             uptime_seconds=time.time() - self.start_time,
         )
