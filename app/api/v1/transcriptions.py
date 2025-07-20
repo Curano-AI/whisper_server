@@ -49,7 +49,7 @@ async def create_transcription(
         err.status_code = status.HTTP_400_BAD_REQUEST
         raise err
 
-    suffix = Path(request.file.filename).suffix or ".wav"
+    suffix = Path(request.file.filename or "default.wav").suffix or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(data)
         tmp_path = tmp.name
