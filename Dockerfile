@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends ffmpeg su-exec && \
     rm -rf /var/lib/apt/lists/*
 
 # Add non-root user
@@ -27,6 +27,11 @@ COPY . .
 RUN chown -R appuser:appuser /app
 RUN chown -R appuser:appuser /home/appuser
 
+# Copy and set up entrypoint
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 USER appuser
 
+ENTRYPOINT ["entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
