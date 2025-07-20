@@ -2,15 +2,11 @@
 
 from fastapi import APIRouter, Depends
 
+from app.dependencies import get_health_service
 from app.models.responses import ErrorResponse, HealthCheckResponse
 from app.services import HealthService
 
 router = APIRouter()
-
-
-def get_health_service() -> HealthService:
-    """Create a new :class:`HealthService` instance."""
-    return HealthService()
 
 
 @router.get(

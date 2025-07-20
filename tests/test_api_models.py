@@ -9,17 +9,23 @@ from app.core.exceptions import ModelLoadError
 from app.main import app
 from app.services.model_manager import ModelManager
 
-client = TestClient(app)
-
 
 def setup_function() -> None:
-    """Reset model manager before each test."""
-    models_api.model_manager = ModelManager()
+    """Override model manager dependency for each test."""
+    mm = ModelManager()
+    app.dependency_overrides[models_api.get_model_manager] = lambda: mm
+    models_api.mm = mm
+
+
+def teardown_function() -> None:
+    """Clear overrides."""
+    app.dependency_overrides.clear()
 
 
 def test_list_models_empty() -> None:
     """GET /models/list returns empty when no models are loaded."""
-    response = client.get("/models/list")
+    with TestClient(app) as client:
+        response = client.get("/models/list")
     assert response.status_code == 200
     data = response.json()
     assert data["loaded_models"] == []
@@ -33,7 +39,8 @@ def test_load_model_success(monkeypatch) -> None:
         "app.services.model_manager.whisperx.load_model", lambda *_, **__: mock_model
     )
 
-    response = client.post("/models/load", json={"model_name": "small"})
+    with TestClient(app) as client:
+        response = client.post("/models/load", json={"model_name": "small"})
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
@@ -46,8 +53,9 @@ def test_load_model_error(monkeypatch) -> None:
     def raise_error(*_args, **_kwargs):
         raise ModelLoadError("boom", model_name="bad", error_code="load_failed")
 
-    monkeypatch.setattr(models_api.model_manager, "load_model", raise_error)
-    response = client.post("/models/load", json={"model_name": "small"})
+    monkeypatch.setattr(models_api.mm, "load_model", raise_error)
+    with TestClient(app) as client:
+        response = client.post("/models/load", json={"model_name": "small"})
     assert response.status_code == 500
     data = response.json()
     assert data["error"]["code"] == "load_failed"
@@ -55,11 +63,12 @@ def test_load_model_error(monkeypatch) -> None:
 
 def test_unload_model_success() -> None:
     """POST /models/unload unloads an existing model."""
-    mm = models_api.model_manager
+    mm = models_api.mm
     # Load a dummy model using the public API instead of touching internals
     mm.load_model("small")
 
-    response = client.post("/models/unload", json={"model_name": "small"})
+    with TestClient(app) as client:
+        response = client.post("/models/unload", json={"model_name": "small"})
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True

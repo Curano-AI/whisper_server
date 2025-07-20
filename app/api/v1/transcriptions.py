@@ -10,17 +10,14 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import Response
 
-from app.core.config import get_settings
+from app.core.config import AppConfig
 from app.core.exceptions import ValidationError
+from app.dependencies import get_settings, get_transcription_service
 from app.models.requests import TranscriptionRequest  # noqa: TC001
 from app.models.responses import ErrorResponse, TranscriptionOutput
 from app.services import TranscriptionService
 
 router = APIRouter()
-
-# Global service instance used by all requests
-service = TranscriptionService()
-settings = get_settings()
 
 
 @router.post(
@@ -34,6 +31,8 @@ settings = get_settings()
 )
 async def create_transcription(
     request: TranscriptionRequest = Depends(),
+    service: TranscriptionService = Depends(get_transcription_service),
+    settings: AppConfig = Depends(get_settings),
 ) -> Response | TranscriptionOutput:
     """Create transcription from uploaded audio file."""
 

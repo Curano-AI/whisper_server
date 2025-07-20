@@ -1,5 +1,5 @@
 # Test Summary
-Passed: 125; failed: 0
+Passed: 126; failed: 0
 ## Passed
 - tests/test_api_models.py::test_list_models_empty
 - tests/test_api_models.py::test_load_model_success
@@ -126,5 +126,6 @@ Passed: 125; failed: 0
 - tests/test_error_handlers.py::test_transcription_error_handled
 - tests/test_error_handlers.py::test_unhandled_exception_returns_server_error
 - tests/test_openai_compatibility.py::test_openai_client_transcription
+- tests/test_app_lifecycle.py::test_startup_loads_default_model
 - tests/test_performance.py::test_transcription_speed
 ## Failed
