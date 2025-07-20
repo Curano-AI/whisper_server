@@ -14,7 +14,6 @@ def setup_function() -> None:
     """Override model manager dependency for each test."""
     mm = ModelManager()
     app.dependency_overrides[models_api.get_model_manager] = lambda: mm
-    models_api.mm = mm
 
 
 def teardown_function() -> None:
@@ -53,7 +52,8 @@ def test_load_model_error(monkeypatch) -> None:
     def raise_error(*_args, **_kwargs):
         raise ModelLoadError("boom", model_name="bad", error_code="load_failed")
 
-    monkeypatch.setattr(models_api.mm, "load_model", raise_error)
+    mm = app.dependency_overrides[models_api.get_model_manager]()
+    monkeypatch.setattr(mm, "load_model", raise_error)
     with TestClient(app) as client:
         response = client.post("/models/load", json={"model_name": "small"})
     assert response.status_code == 500
@@ -63,7 +63,7 @@ def test_load_model_error(monkeypatch) -> None:
 
 def test_unload_model_success() -> None:
     """POST /models/unload unloads an existing model."""
-    mm = models_api.mm
+    mm = app.dependency_overrides[models_api.get_model_manager]()
     # Load a dummy model using the public API instead of touching internals
     mm.load_model("small")
 
