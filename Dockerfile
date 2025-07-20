@@ -1,20 +1,38 @@
-FROM python:3.12-slim
+FROM nvidia/cuda:12.6.2-cudnn-runtime-ubuntu22.04
 
 ENV PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.7.1
+    POETRY_VERSION=1.7.1 \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Install system dependencies
+# Install Python 3.12 and other system dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg gosu && \
+    apt-get install -y --no-install-recommends \
+        software-properties-common \
+        ffmpeg \
+        gosu \
+        wget \
+        ca-certificates && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get install -y --no-install-recommends \
+        python3.12 \
+        python3.12-dev && \
     rm -rf /var/lib/apt/lists/*
+
+# Install pip for Python 3.12 and set it as default for both `python` and `python3`
+RUN wget https://bootstrap.pypa.io/get-pip.py && \
+    python3.12 get-pip.py && \
+    rm get-pip.py && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 
 # Add non-root user
 RUN useradd -m appuser
 
 # Install Poetry
-RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}"
+# Use python's pip to ensure it's installed for the correct version
+RUN python -m pip install --no-cache-dir "poetry==${POETRY_VERSION}"
 
 # Install dependencies
 COPY pyproject.toml poetry.lock ./
