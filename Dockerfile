@@ -25,13 +25,10 @@ RUN poetry config virtualenvs.create false && \
 COPY . .
 
 RUN chown -R appuser:appuser /app
-RUN chown -R appuser:appuser /home/appuser
 
 # Copy and set up entrypoint
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
-
-USER appuser
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
