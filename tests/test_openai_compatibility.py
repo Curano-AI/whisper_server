@@ -13,12 +13,12 @@ from app.models.responses import TranscriptionResponse
 @pytest.mark.asyncio
 async def test_openai_client_transcription() -> None:
     """OpenAI client is compatible with our API."""
-    # Override service so we don't hit real model logic
-    with patch.object(trans_api, "service", Mock()) as service_mock:
-        service_mock.transcribe.return_value = TranscriptionResponse(
-            text="hello", segments=None, words=None, language="en"
-        )
-
+    service_mock = Mock()
+    service_mock.transcribe.return_value = TranscriptionResponse(
+        text="hello", segments=None, words=None, language="en"
+    )
+    overrides = {trans_api.get_transcription_service: lambda: service_mock}
+    with patch.dict(app.dependency_overrides, overrides):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://testserver"
         ) as async_client:
@@ -31,5 +31,5 @@ async def test_openai_client_transcription() -> None:
                 file=("test.wav", BytesIO(b"data")), model="whisper-1"
             )
 
-        assert result.text == "hello"
-        service_mock.transcribe.assert_called_once()
+    assert result.text == "hello"
+    service_mock.transcribe.assert_called_once()

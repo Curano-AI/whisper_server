@@ -10,6 +10,13 @@ from app.core.config import get_settings
 from app.core.error_handlers import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import LoggingMiddleware
+from app.services import (
+    AudioProcessor,
+    LanguageDetector,
+    ModelManager,
+    TranscriptionService,
+)
+from app.services.health import HealthService
 
 # Initialize logging
 setup_logging()
@@ -43,12 +50,39 @@ async def startup_event():
     logger.info("WhisperX FastAPI Server starting up...")
     logger.info(f"Configuration: {settings.model_dump()}")
 
+    app.state.settings = settings
+    app.state.model_manager = ModelManager()
+    app.state.transcription_service = TranscriptionService(
+        audio_processor=AudioProcessor(),
+        language_detector=LanguageDetector(),
+        model_manager=app.state.model_manager,
+    )
+    app.state.health_service = HealthService(app.state.model_manager)
+
+    # Preload default model and perform health check
+    try:
+        app.state.model_manager.load_model(settings.default_model)
+    except Exception as exc:
+        logger.exception(
+            "Failed to load default model '%s': %s", settings.default_model, exc
+        )
+        raise SystemExit(1) from exc
+
+    try:
+        app.state.health_service.get_health()
+    except Exception as exc:
+        logger.exception("Startup health check failed: %s", exc)
+        raise SystemExit(1) from exc
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown event handler."""
     logger = logging.getLogger(__name__)
     logger.info("WhisperX FastAPI Server shutting down...")
+    manager: ModelManager | None = getattr(app.state, "model_manager", None)
+    if manager:
+        manager.clear()
 
 
 if __name__ == "__main__":

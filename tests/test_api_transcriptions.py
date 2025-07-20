@@ -9,13 +9,20 @@ from app.api.v1 import transcriptions as trans_api
 from app.main import app
 from app.models.responses import TranscriptionResponse
 
-client = TestClient(app)
-
 
 def setup_function() -> None:
-    """Reset service instance and settings before each test."""
-    trans_api.service = Mock()
-    trans_api.settings.max_file_size = 1024
+    """Override dependencies with mocks for each test."""
+    mock_service = Mock()
+    app.dependency_overrides[trans_api.get_transcription_service] = lambda: mock_service
+    setup_function.default_size = app.state.settings.max_file_size
+    app.state.settings.max_file_size = 1024
+    trans_api.mock_service = mock_service
+
+
+def teardown_function() -> None:
+    """Clear overrides after each test."""
+    app.dependency_overrides.clear()
+    app.state.settings.max_file_size = setup_function.default_size
 
 
 def test_transcription_json_success() -> None:
@@ -23,22 +30,24 @@ def test_transcription_json_success() -> None:
     dummy = TranscriptionResponse(
         text="hello", segments=None, words=None, language="en"
     )
-    trans_api.service.transcribe.return_value = dummy
+    trans_api.mock_service.transcribe.return_value = dummy
 
     files = {"file": ("test.wav", BytesIO(b"data"), "audio/wav")}
-    response = client.post("/v1/audio/transcriptions", files=files)
+    with TestClient(app) as client:
+        response = client.post("/v1/audio/transcriptions", files=files)
 
     assert response.status_code == 200
     assert response.json()["text"] == "hello"
-    trans_api.service.transcribe.assert_called_once()
+    trans_api.mock_service.transcribe.assert_called_once()
 
 
 def test_transcription_text_format() -> None:
     """Return plain text when requested."""
-    trans_api.service.transcribe.return_value = "hello"
+    trans_api.mock_service.transcribe.return_value = "hello"
     files = {"file": ("test.wav", BytesIO(b"data"), "audio/wav")}
     data = {"response_format": "text"}
-    response = client.post("/v1/audio/transcriptions", files=files, data=data)
+    with TestClient(app) as client:
+        response = client.post("/v1/audio/transcriptions", files=files, data=data)
 
     assert response.status_code == 200
     assert response.text == "hello"
@@ -47,10 +56,11 @@ def test_transcription_text_format() -> None:
 
 def test_transcription_file_too_large() -> None:
     """Reject files exceeding max size."""
-    trans_api.settings.max_file_size = 1
+    app.state.settings.max_file_size = 1
     files = {"file": ("big.wav", BytesIO(b"ab"), "audio/wav")}
-    response = client.post("/v1/audio/transcriptions", files=files)
+    with TestClient(app) as client:
+        response = client.post("/v1/audio/transcriptions", files=files)
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "file_too_large"
-    trans_api.service.transcribe.assert_not_called()
+    trans_api.mock_service.transcribe.assert_not_called()

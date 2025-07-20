@@ -1,8 +1,9 @@
 """Model management API endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.core.exceptions import ModelLoadError
+from app.dependencies import get_model_manager
 from app.models.requests import ModelLoadRequest, ModelUnloadRequest
 from app.models.responses import (
     ErrorResponse,
@@ -15,12 +16,11 @@ from app.services import ModelManager
 
 router = APIRouter()
 
-# Global model manager instance for all requests
-model_manager = ModelManager()
-
 
 @router.get("/list", response_model=LoadedModelsResponse)
-async def list_models() -> LoadedModelsResponse:
+async def list_models(
+    model_manager: ModelManager = Depends(get_model_manager),
+) -> LoadedModelsResponse:
     """List currently loaded models."""
     loaded_models: list[LoadedModelInfo] = []
     total_mem = 0.0
@@ -51,7 +51,10 @@ async def list_models() -> LoadedModelsResponse:
     response_model=ModelLoadResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def load_model(request: ModelLoadRequest) -> ModelLoadResponse:
+async def load_model(
+    request: ModelLoadRequest,
+    model_manager: ModelManager = Depends(get_model_manager),
+) -> ModelLoadResponse:
     """Load a WhisperX model."""
     model_manager.load_model(request.model_name, request.device, request.compute_type)
     entry = model_manager.get_model_info(request.model_name)
@@ -77,6 +80,7 @@ async def load_model(request: ModelLoadRequest) -> ModelLoadResponse:
 )
 async def unload_model(
     request: ModelUnloadRequest,
+    model_manager: ModelManager = Depends(get_model_manager),
 ) -> ModelUnloadResponse:
     """Unload a WhisperX model."""
     if request.model_name not in model_manager.list_models():

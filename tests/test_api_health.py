@@ -13,8 +13,6 @@ from app.models.responses import (
     SystemResources,
 )
 
-client = TestClient(app)
-
 
 def setup_function() -> None:
     """Override dependency with a mock service for each test."""
@@ -51,7 +49,8 @@ def test_healthcheck_success() -> None:
     dummy = _dummy_response()
     health_api.mock_service.get_health.return_value = dummy
 
-    response = client.get("/healthcheck")
+    with TestClient(app) as client:
+        response = client.get("/healthcheck")
 
     assert response.status_code == 200
     assert response.json()["health"]["status"] == "healthy"
@@ -62,7 +61,8 @@ def test_healthcheck_error() -> None:
     """Service error results in 503 response."""
     health_api.mock_service.get_health.side_effect = ResourceError("boom")
 
-    response = client.get("/healthcheck")
+    with TestClient(app) as client:
+        response = client.get("/healthcheck")
 
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "resource_error"
