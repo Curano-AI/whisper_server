@@ -128,23 +128,20 @@ class TranscriptionService:
                 sample_paths
             )
 
-            # Load model and run inference
-            model = self.model_manager.load_model(request.model)
-
+            # Build options
             asr_opts = self._build_asr_options(request)
+            vad_opts = self._build_vad_options(request)
+
+            # Load model with options
+            model = self.model_manager.load_model(
+                request.model, asr_options=asr_opts, vad_options=vad_opts
+            )
 
             result = model.transcribe(
                 str(file_path),
                 batch_size=self.settings.batch_size,
                 language=language,
                 verbose=False,
-                beam_size=asr_opts.get("beam_size", 2),
-                condition_on_previous_text=asr_opts.get(
-                    "condition_on_previous_text", False
-                ),
-                suppress_tokens=asr_opts.get("suppress_tokens", []),
-                temperatures=asr_opts.get("temperatures", [0.0]),
-                no_speech_threshold=asr_opts.get("no_speech_threshold", 0.6),
             )
 
             return self._format_response(
