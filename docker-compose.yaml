@@ -9,16 +9,15 @@ services:
       - cache:/home/appuser/.cache
     ports:
       - "8000:8000"
-    # To enable GPU acceleration, uncomment the following lines.
     # This requires the NVIDIA Container Toolkit to be installed on the host machine.
     # For more information, see: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
 volumes:
   cache:
