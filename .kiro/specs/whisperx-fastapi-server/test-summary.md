@@ -1,5 +1,5 @@
 # Test Summary
-Passed: 121; failed: 0
+Passed: 123; failed: 0
 ## Passed
 - tests/test_api_models.py::test_list_models_empty
 - tests/test_api_models.py::test_load_model_success
@@ -123,4 +123,6 @@ Passed: 121; failed: 0
 - tests/test_transcription_service.py::test_transcribe_formats
 - tests/test_api_health.py::test_healthcheck_success
 - tests/test_api_health.py::test_healthcheck_error
+- tests/test_error_handlers.py::test_transcription_error_handled
+- tests/test_error_handlers.py::test_unhandled_exception_returns_server_error
 ## Failed

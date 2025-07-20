@@ -1,12 +1,10 @@
 """Model management API endpoints."""
 
-from fastapi import APIRouter, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter
 
 from app.core.exceptions import ModelLoadError
 from app.models.requests import ModelLoadRequest, ModelUnloadRequest
 from app.models.responses import (
-    ErrorDetail,
     ErrorResponse,
     LoadedModelInfo,
     LoadedModelsResponse,
@@ -53,39 +51,23 @@ async def list_models() -> LoadedModelsResponse:
     response_model=ModelLoadResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def load_model(request: ModelLoadRequest) -> JSONResponse | ModelLoadResponse:
+async def load_model(request: ModelLoadRequest) -> ModelLoadResponse:
     """Load a WhisperX model."""
-    try:
-        model_manager.load_model(
-            request.model_name, request.device, request.compute_type
-        )
-        entry = model_manager.get_model_info(request.model_name)
-        model_info = LoadedModelInfo(
-            model_name=request.model_name,
-            device=entry["device"],
-            compute_type=entry["compute_type"],
-            load_time=entry["load_time"],
-            last_used=entry["last_used"],
-            memory_usage_mb=None,  # AICODE-TODO: calculate GPU/CPU memory usage
-        )
-        return ModelLoadResponse(
-            success=True,
-            message="Model loaded successfully",
-            model_info=model_info,
-        )
-    except ModelLoadError as exc:
-        error = ErrorResponse(
-            error=ErrorDetail(
-                message=exc.message,
-                type=exc.error_type,
-                param=exc.param,
-                code=exc.error_code,
-            )
-        )
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=error.model_dump(),
-        )
+    model_manager.load_model(request.model_name, request.device, request.compute_type)
+    entry = model_manager.get_model_info(request.model_name)
+    model_info = LoadedModelInfo(
+        model_name=request.model_name,
+        device=entry["device"],
+        compute_type=entry["compute_type"],
+        load_time=entry["load_time"],
+        last_used=entry["last_used"],
+        memory_usage_mb=None,  # AICODE-TODO: calculate GPU/CPU memory usage
+    )
+    return ModelLoadResponse(
+        success=True,
+        message="Model loaded successfully",
+        model_info=model_info,
+    )
 
 
 @router.post(
@@ -95,20 +77,13 @@ async def load_model(request: ModelLoadRequest) -> JSONResponse | ModelLoadRespo
 )
 async def unload_model(
     request: ModelUnloadRequest,
-) -> JSONResponse | ModelUnloadResponse:
+) -> ModelUnloadResponse:
     """Unload a WhisperX model."""
     if request.model_name not in model_manager.list_models():
-        error = ErrorResponse(
-            error=ErrorDetail(
-                message=f"Model not loaded: {request.model_name}",
-                type="model_load_error",
-                param="model",
-                code="not_loaded",
-            )
-        )
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=error.model_dump(),
+        raise ModelLoadError(
+            f"Model not loaded: {request.model_name}",
+            model_name=request.model_name,
+            error_code="not_loaded",
         )
 
     model_manager.unload_model(request.model_name)

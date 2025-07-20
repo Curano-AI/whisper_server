@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from app.api import health
 from app.api.v1 import models, transcriptions
 from app.core.config import get_settings
+from app.core.error_handlers import register_exception_handlers
 from app.core.logging import setup_logging
+from app.core.middleware import LoggingMiddleware
 
 # Initialize logging
 setup_logging()
@@ -23,6 +25,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Register middleware and exception handlers
+app.add_middleware(LoggingMiddleware)
+register_exception_handlers(app)
 
 # Include API routers
 app.include_router(transcriptions.router, prefix="/v1/audio", tags=["transcriptions"])
