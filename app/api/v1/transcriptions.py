@@ -8,12 +8,12 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, status
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 
 from app.core.config import get_settings
-from app.core.exceptions import AudioProcessingError, TranscriptionError
-from app.models.requests import TranscriptionRequest  # noqa: TCH001
-from app.models.responses import ErrorDetail, ErrorResponse, TranscriptionOutput
+from app.core.exceptions import ValidationError
+from app.models.requests import TranscriptionRequest  # noqa: TC001
+from app.models.responses import ErrorResponse, TranscriptionOutput
 from app.services import TranscriptionService
 
 router = APIRouter()
@@ -34,22 +34,18 @@ settings = get_settings()
 )
 async def create_transcription(
     request: TranscriptionRequest = Depends(),
-) -> Response | JSONResponse | TranscriptionOutput:
+) -> Response | TranscriptionOutput:
     """Create transcription from uploaded audio file."""
 
     data = await request.file.read()
     if len(data) > settings.max_file_size:
-        error = ErrorResponse(
-            error=ErrorDetail(
-                message=f"File too large. Limit {settings.max_file_size} bytes",
-                type="invalid_request_error",
-                param="file",
-                code="file_too_large",
-            )
+        err = ValidationError(
+            f"File too large. Limit {settings.max_file_size} bytes",
+            param="file",
+            error_code="file_too_large",
         )
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        err.status_code = status.HTTP_400_BAD_REQUEST
+        raise err
 
     suffix = Path(request.file.filename).suffix or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -58,16 +54,6 @@ async def create_transcription(
 
     try:
         output = service.transcribe(tmp_path, request)
-    except (AudioProcessingError, TranscriptionError) as exc:
-        error = ErrorResponse(
-            error=ErrorDetail(
-                message=exc.message,
-                type=exc.error_type,
-                param=exc.param,
-                code=exc.error_code,
-            )
-        )
-        return JSONResponse(status_code=exc.status_code, content=error.model_dump())
     finally:
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)
