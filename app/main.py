@@ -1,6 +1,7 @@
 """FastAPI application initialization and configuration."""
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -25,30 +26,13 @@ setup_logging()
 # Get application settings
 settings = get_settings()
 
-# Create FastAPI application
-app = FastAPI(
-    title="WhisperX FastAPI Server",
-    description="OpenAI-compatible audio transcription service using WhisperX",
-    version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
 
-# Register middleware and exception handlers
-app.add_middleware(LoggingMiddleware)
-app.add_middleware(SecurityHeadersMiddleware)
-register_exception_handlers(app)
-
-# Include API routers
-app.include_router(transcriptions.router, prefix="/v1/audio", tags=["transcriptions"])
-app.include_router(models.router, prefix="/models", tags=["models"])
-app.include_router(health.router, tags=["health"])
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event handler."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
     logger = logging.getLogger(__name__)
+
+    # Startup
     logger.info("WhisperX FastAPI Server starting up...")
     logger.info(f"Configuration: {settings.model_dump()}")
 
@@ -76,15 +60,34 @@ async def startup_event():
         logger.exception("Startup health check failed: %s", exc)
         raise SystemExit(1) from exc
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown event handler."""
-    logger = logging.getLogger(__name__)
+    # Shutdown
     logger.info("WhisperX FastAPI Server shutting down...")
     manager: ModelManager | None = getattr(app.state, "model_manager", None)
     if manager:
         manager.clear()
+
+
+# Create FastAPI application
+app = FastAPI(
+    title="WhisperX FastAPI Server",
+    description="OpenAI-compatible audio transcription service using WhisperX",
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# Register middleware and exception handlers
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+register_exception_handlers(app)
+
+# Include API routers
+app.include_router(transcriptions.router, prefix="/v1/audio", tags=["transcriptions"])
+app.include_router(models.router, prefix="/models", tags=["models"])
+app.include_router(health.router, tags=["health"])
 
 
 if __name__ == "__main__":
