@@ -6,16 +6,19 @@ import contextlib
 import os
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import Response
 
-from app.core.config import AppConfig
 from app.core.exceptions import ValidationError
 from app.dependencies import get_settings, get_transcription_service
 from app.models.requests import TranscriptionRequest  # noqa: TC001
 from app.models.responses import ErrorResponse, TranscriptionOutput
-from app.services import TranscriptionService
+
+if TYPE_CHECKING:  # AICODE-NOTE: avoid runtime import cost
+    from app.core.config import AppConfig
+    from app.services import TranscriptionService
 
 router = APIRouter()
 

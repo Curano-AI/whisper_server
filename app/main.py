@@ -60,8 +60,19 @@ async def startup_event():
     app.state.health_service = HealthService(app.state.model_manager)
 
     # Preload default model and perform health check
-    app.state.model_manager.load_model(settings.default_model)
-    app.state.health_service.get_health()
+    try:
+        app.state.model_manager.load_model(settings.default_model)
+    except Exception as exc:
+        logger.exception(
+            "Failed to load default model '%s': %s", settings.default_model, exc
+        )
+        raise SystemExit(1) from exc
+
+    try:
+        app.state.health_service.get_health()
+    except Exception as exc:
+        logger.exception("Startup health check failed: %s", exc)
+        raise SystemExit(1) from exc
 
 
 @app.on_event("shutdown")
