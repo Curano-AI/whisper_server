@@ -9,12 +9,14 @@ def _load_model_stub(*_args, **_kwargs):
     return object()
 
 
-whisperx.load_model = _load_model_stub
+whisperx.load_model = _load_model_stub  # type: ignore[attr-defined]
 sys.modules.setdefault("whisperx", whisperx)
 
 # Stub torch module with cuda property
 torch = types.ModuleType("torch")
-torch.cuda = types.SimpleNamespace(is_available=lambda: False, empty_cache=lambda: None)
+torch.cuda = types.SimpleNamespace(  # type: ignore[attr-defined]
+    is_available=lambda: False, empty_cache=lambda: None
+)
 sys.modules.setdefault("torch", torch)
 
 # Stub openai whisper tokenizer module
@@ -31,8 +33,8 @@ def _get_tokenizer_stub(*_args, **_kwargs):
     return _DummyTokenizer()
 
 
-whisper_tokenizer.get_tokenizer = _get_tokenizer_stub
+whisper_tokenizer.get_tokenizer = _get_tokenizer_stub  # type: ignore[attr-defined]
 
-whisper.tokenizer = whisper_tokenizer
+whisper.tokenizer = whisper_tokenizer  # type: ignore[attr-defined]
 sys.modules.setdefault("whisper", whisper)
 sys.modules.setdefault("whisper.tokenizer", whisper_tokenizer)
