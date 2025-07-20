@@ -81,6 +81,7 @@ def test_transcribe_json(service):
 
     assert output.text == "hello world"
     assert isinstance(output.segments, list)
+    assert model.called_with is not None
     assert model.called_with[1]["language"] == "en"
 
 
