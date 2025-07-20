@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.2-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 
 ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=1.7.1 \
