@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=1.7.1 \
@@ -31,7 +31,6 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 RUN useradd -m appuser
 
 # Install Poetry
-# Use python's pip to ensure it's installed for the correct version
 RUN python -m pip install --no-cache-dir "poetry==${POETRY_VERSION}"
 
 # Install dependencies
