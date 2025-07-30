@@ -3,9 +3,15 @@
 from functools import lru_cache
 from typing import Any
 
-import torch
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
+
+
+def get_device() -> str:
+    """Get the device for Torch."""
+    import torch  # noqa: PLC0415
+
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class AppConfig(BaseSettings):
@@ -17,11 +23,15 @@ class AppConfig(BaseSettings):
     workers: int = Field(default=1, alias="WORKERS")
     debug: bool = Field(default=False, alias="DEBUG")
 
+    # Security configuration
+    auth_enabled: bool = Field(default=False, alias="AUTH_ENABLED")
+    api_key: SecretStr | None = Field(default=None, alias="API_KEY")
+
     # Model configuration
     default_model: str = Field(default="large-v3", alias="DEFAULT_MODEL")
     detector_model: str = Field(default="small", alias="DETECTOR_MODEL")
     device: str = Field(
-        default_factory=lambda: "cuda" if torch.cuda.is_available() else "cpu",
+        default_factory=get_device,
         alias="DEVICE",
     )
 

@@ -1,9 +1,10 @@
 """FastAPI application initialization and configuration."""
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from app.api import health
 from app.api.v1 import models, transcriptions
@@ -12,6 +13,7 @@ from app.core.error_handlers import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import LoggingMiddleware
 from app.core.security import SecurityHeadersMiddleware
+from app.security import get_api_key
 from app.services import (
     AudioProcessor,
     LanguageDetector,
@@ -28,13 +30,17 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
     logger = logging.getLogger(__name__)
 
     # Startup
     logger.info("WhisperX FastAPI Server starting up...")
     logger.info(f"Configuration: {settings.model_dump()}")
+
+    if settings.auth_enabled and not settings.api_key:
+        logger.error("Authentication is enabled, but no API_KEY is configured.")
+        raise SystemExit(1)
 
     app.state.settings = settings
     app.state.model_manager = ModelManager()
@@ -85,8 +91,18 @@ app.add_middleware(SecurityHeadersMiddleware)
 register_exception_handlers(app)
 
 # Include API routers
-app.include_router(transcriptions.router, prefix="/v1/audio", tags=["transcriptions"])
-app.include_router(models.router, prefix="/models", tags=["models"])
+app.include_router(
+    transcriptions.router,
+    prefix="/v1/audio",
+    tags=["transcriptions"],
+    dependencies=[Depends(get_api_key)],
+)
+app.include_router(
+    models.router,
+    prefix="/models",
+    tags=["models"],
+    dependencies=[Depends(get_api_key)],
+)
 app.include_router(health.router, tags=["health"])
 
 
