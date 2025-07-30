@@ -7,9 +7,6 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-import torch
-import whisperx
-
 from app.core.config import get_settings
 from app.core.exceptions import ModelLoadError
 
@@ -46,6 +43,8 @@ class ModelManager:
         Raises:
             ModelLoadError: If the model fails to load.
         """
+        import whisperx  # noqa: PLC0415
+
         name = model_name or self.settings.default_model
         # Create cache key including options for proper caching
         cache_key = f"{name}_{device or self.settings.device}_{compute_type or 'auto'}"
@@ -114,6 +113,8 @@ class ModelManager:
 
     def unload_model(self, model_name: str) -> None:
         """Unload a model and free associated memory."""
+        import torch  # noqa: PLC0415
+
         # Find and remove all variants of this model
         keys_to_remove = [
             key for key in self._models if key.startswith(f"{model_name}_")

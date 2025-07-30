@@ -17,7 +17,7 @@ class TestModelManager:
     def teardown_method(self):
         self.manager.clear()
 
-    @patch("app.services.model_manager.whisperx.load_model")
+    @patch("whisperx.load_model")
     def test_load_model_success(self, mock_load_model):
         """Load a model successfully."""
         mock_model = Mock()
@@ -29,16 +29,14 @@ class TestModelManager:
         assert "small" in self.manager.list_models()
         mock_load_model.assert_called_once_with("small", "cpu", compute_type="int8")
 
-    @patch(
-        "app.services.model_manager.whisperx.load_model", side_effect=Exception("boom")
-    )
+    @patch("whisperx.load_model", side_effect=Exception("boom"))
     def test_load_model_failure(self, mock_load_model):
         """Handle load failure with ModelLoadError."""
         with pytest.raises(ModelLoadError):
             self.manager.load_model("small")
         mock_load_model.assert_called_once()
 
-    @patch("app.services.model_manager.whisperx.load_model")
+    @patch("whisperx.load_model")
     def test_get_model(self, mock_load_model):
         """Retrieve previously loaded model."""
         mock_model = Mock()
@@ -53,7 +51,7 @@ class TestModelManager:
         with pytest.raises(ModelLoadError):
             self.manager.get_model("missing")
 
-    @patch("app.services.model_manager.whisperx.load_model")
+    @patch("whisperx.load_model")
     def test_unload_model(self, mock_load_model):
         """Unload model and remove from cache."""
         mock_load_model.return_value = Mock()

@@ -8,7 +8,6 @@ import tempfile
 from pathlib import Path
 from typing import cast
 
-import whisperx
 from pydub import AudioSegment
 
 from app.core.config import get_settings
@@ -27,6 +26,8 @@ class LanguageDetector:
 
     def _load_detector_model(self):
         """Load the detector model if not already loaded."""
+        import whisperx  # noqa: PLC0415
+
         if self._detector_model is None:
             logger.info(f"Loading detector model: {self.settings.detector_model}")
             self._detector_model = whisperx.load_model(

@@ -7,7 +7,6 @@ import time
 from datetime import UTC, datetime
 
 import psutil
-import torch
 
 from app.core.exceptions import ResourceError
 from app.models.responses import (
@@ -31,6 +30,8 @@ class HealthService:
 
     def _get_gpu_usage(self) -> float | None:
         """Return GPU memory usage percent if available."""
+        import torch  # noqa: PLC0415
+
         if not torch.cuda.is_available():
             return None
         try:
@@ -39,6 +40,12 @@ class HealthService:
             return used / total * 100 if total else None
         except Exception:  # pragma: no cover - safety net
             return None
+
+    def _is_gpu_available(self) -> bool:
+        """Check if GPU is available."""
+        import torch  # noqa: PLC0415
+
+        return torch.cuda.is_available()
 
     def _get_system_resources(self) -> SystemResources:
         """Collect system resource metrics."""
@@ -55,7 +62,7 @@ class HealthService:
             memory_usage_percent=mem.percent,
             memory_available_gb=mem.available / (1024**3),
             disk_usage_percent=disk.percent,
-            gpu_available=torch.cuda.is_available(),
+            gpu_available=self._is_gpu_available(),
             gpu_memory_usage_percent=self._get_gpu_usage(),
         )
 

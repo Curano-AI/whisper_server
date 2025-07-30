@@ -27,7 +27,7 @@ class TestLanguageDetector:
         assert hasattr(detector, "settings")
         assert hasattr(detector, "_device")
 
-    @patch("app.services.language_detector.whisperx.load_model")
+    @patch("whisperx.load_model")
     def test_load_detector_model_first_time(self, mock_load_model):
         """Test loading detector model for the first time."""
         mock_model = Mock()
@@ -43,7 +43,7 @@ class TestLanguageDetector:
             compute_type=self.detector.settings.detector_compute_type,
         )
 
-    @patch("app.services.language_detector.whisperx.load_model")
+    @patch("whisperx.load_model")
     def test_load_detector_model_already_loaded(self, mock_load_model):
         """Test loading detector model when already loaded."""
         mock_model = Mock()

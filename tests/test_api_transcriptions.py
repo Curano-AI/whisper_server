@@ -1,5 +1,6 @@
 """Tests for /v1/audio/transcriptions endpoint."""
 
+from collections.abc import Generator
 from io import BytesIO
 from unittest.mock import Mock
 
@@ -12,13 +13,15 @@ from app.models.responses import TranscriptionResponse
 
 
 @pytest.fixture
-def mock_transcription_service():
+def mock_transcription_service() -> Mock:
     """Create a mock transcription service for testing."""
     return Mock()
 
 
 @pytest.fixture
-def client(mock_transcription_service):
+def client(
+    authenticated_client: TestClient, mock_transcription_service: Mock
+) -> Generator[TestClient, None, None]:
     """Create test client with mocked transcription service dependency."""
     app.dependency_overrides[trans_api.get_transcription_service] = (
         lambda: mock_transcription_service
@@ -28,15 +31,16 @@ def client(mock_transcription_service):
     original_size = app.state.settings.max_file_size
     app.state.settings.max_file_size = 1024
 
-    with TestClient(app) as test_client:
-        yield test_client
+    yield authenticated_client
 
     # Restore original settings and clear overrides
     app.state.settings.max_file_size = original_size
     app.dependency_overrides.clear()
 
 
-def test_transcription_json_success(client, mock_transcription_service) -> None:
+def test_transcription_json_success(
+    client: TestClient, mock_transcription_service: Mock
+) -> None:
     """POST returns JSON transcription output."""
     dummy = TranscriptionResponse(
         text="hello", segments=None, words=None, language="en"
@@ -51,7 +55,9 @@ def test_transcription_json_success(client, mock_transcription_service) -> None:
     mock_transcription_service.transcribe.assert_called_once()
 
 
-def test_transcription_text_format(client, mock_transcription_service) -> None:
+def test_transcription_text_format(
+    client: TestClient, mock_transcription_service: Mock
+) -> None:
     """Return plain text when requested."""
     mock_transcription_service.transcribe.return_value = "hello"
     files = {"file": ("test.wav", BytesIO(b"data"), "audio/wav")}
@@ -63,7 +69,9 @@ def test_transcription_text_format(client, mock_transcription_service) -> None:
     assert response.headers["content-type"].startswith("text/plain")
 
 
-def test_transcription_file_too_large(client, mock_transcription_service) -> None:
+def test_transcription_file_too_large(
+    client: TestClient, mock_transcription_service: Mock
+) -> None:
     """Reject files exceeding max size."""
     app.state.settings.max_file_size = 1
     files = {"file": ("big.wav", BytesIO(b"ab"), "audio/wav")}

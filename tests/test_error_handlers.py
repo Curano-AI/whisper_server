@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from io import BytesIO
 from unittest.mock import Mock
 
@@ -10,13 +11,15 @@ from app.main import app
 
 
 @pytest.fixture
-def mock_transcription_service():
+def mock_transcription_service() -> Mock:
     """Create a mock transcription service for testing."""
     return Mock()
 
 
 @pytest.fixture
-def client(mock_transcription_service):
+def client(
+    authenticated_client: TestClient, mock_transcription_service: Mock
+) -> Generator[TestClient, None, None]:
     """Create test client with mocked transcription service dependency."""
     app.dependency_overrides[trans_api.get_transcription_service] = (
         lambda: mock_transcription_service
@@ -26,15 +29,17 @@ def client(mock_transcription_service):
     original_size = app.state.settings.max_file_size
     app.state.settings.max_file_size = 1024
 
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
+    yield authenticated_client
 
     # Restore original settings and clear overrides
     app.state.settings.max_file_size = original_size
     app.dependency_overrides.clear()
 
 
-def test_transcription_error_handled(client, mock_transcription_service) -> None:
+def test_transcription_error_handled(
+    client: TestClient, mock_transcription_service: Mock
+) -> None:
+    """Test that a TranscriptionError is handled and returns a 500 error."""
     mock_transcription_service.transcribe.side_effect = TranscriptionError(
         "boom", error_code="failed"
     )
@@ -48,8 +53,9 @@ def test_transcription_error_handled(client, mock_transcription_service) -> None
 
 
 def test_unhandled_exception_returns_server_error(
-    client, mock_transcription_service
+    client: TestClient, mock_transcription_service: Mock
 ) -> None:
+    """Test that an unhandled exception returns a 500 server error."""
     mock_transcription_service.transcribe.side_effect = Exception("oops")
     files = {"file": ("test.wav", BytesIO(b"data"), "audio/wav")}
     response = client.post("/v1/audio/transcriptions", files=files)

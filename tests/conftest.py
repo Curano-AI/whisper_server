@@ -1,6 +1,12 @@
 import sys
 import types
 
+import pytest
+from fastapi.testclient import TestClient
+
+from app.core.config import get_settings
+from app.main import app
+
 # Stub whisperx module
 whisperx = types.ModuleType("whisperx")
 
@@ -38,3 +44,18 @@ whisper_tokenizer.get_tokenizer = _get_tokenizer_stub  # type: ignore[attr-defin
 whisper.tokenizer = whisper_tokenizer  # type: ignore[attr-defined]
 sys.modules.setdefault("whisper", whisper)
 sys.modules.setdefault("whisper.tokenizer", whisper_tokenizer)
+
+
+@pytest.fixture(scope="module")
+def client() -> TestClient:
+    return TestClient(app)
+
+
+@pytest.fixture(scope="module")
+def authenticated_client() -> TestClient:
+    settings = get_settings()
+    client = TestClient(app, raise_server_exceptions=False)
+    if settings.auth_enabled and settings.api_key:
+        api_key = settings.api_key.get_secret_value()
+        client.headers["Authorization"] = f"Bearer {api_key}"
+    return client
