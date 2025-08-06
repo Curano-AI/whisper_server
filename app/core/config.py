@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 
 def get_device() -> str:
     """Get the device for Torch."""
-    import torch  # noqa: PLC0415
+    import torch  # noqa: PLC0415, RUF100
 
     return "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -41,6 +41,13 @@ class AppConfig(BaseSettings):
         default=0.6,
         alias="MIN_PROB",
         description="Language detection confidence threshold",
+    )
+
+    # Language detection weighting configuration
+    confidence_weight: float = Field(
+        default=2.0,
+        alias="CONFIDENCE_WEIGHT",
+        description="Confidence weighting factor for language detection scoring",
     )
     max_file_size: int = Field(
         default=200 * 1024 * 1024, alias="MAX_FILE_SIZE"

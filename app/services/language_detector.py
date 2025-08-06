@@ -26,7 +26,7 @@ class LanguageDetector:
 
     def _load_detector_model(self):
         """Load the detector model if not already loaded."""
-        import whisperx  # noqa: PLC0415
+        import whisperx  # noqa: PLC0415, RUF100
 
         if self._detector_model is None:
             logger.info(f"Loading detector model: {self.settings.detector_model}")
@@ -96,8 +96,8 @@ class LanguageDetector:
             )
             return self._fallback_detection(audio_chunks)
 
-        # Select best language using vote count and confidence sum tie-breaking
-        best_lang = max(votes, key=lambda lang: (votes[lang], prob_sum[lang]))
+        # Select best language using confidence-weighted scoring
+        best_lang = self._select_best_language_weighted(votes, prob_sum)
         mean_prob = prob_sum[best_lang] / votes[best_lang] if votes[best_lang] else 0
 
         logger.info(
@@ -106,6 +106,64 @@ class LanguageDetector:
         )
 
         return best_lang, mean_prob, votes, prob_sum
+
+    def _calculate_language_score(
+        self, lang: str, votes: dict[str, int], prob_sum: dict[str, float]
+    ) -> float:
+        """Calculate confidence-weighted score for a language.
+
+        Uses the formula: (avg_confidence ^ confidence_weight) * vote_count
+        This heavily favors high confidence while still considering vote consistency.
+
+        Args:
+            lang: Language code
+            votes: Dictionary of vote counts per language
+            prob_sum: Dictionary of probability sums per language
+
+        Returns:
+            Weighted score for the language
+        """
+        vote_count = votes[lang]
+        avg_confidence = prob_sum[lang] / vote_count
+
+        # Weighted score: confidence^weight * vote_count
+        # This heavily favors high confidence while considering vote consistency
+        weighted_score = (avg_confidence**self.settings.confidence_weight) * vote_count
+
+        logger.debug(
+            f"Language {lang}: votes={vote_count}, avg_conf={avg_confidence:.3f}, "
+            f"weighted_score={weighted_score:.3f}"
+        )
+
+        return weighted_score
+
+    def _select_best_language_weighted(
+        self, votes: dict[str, int], prob_sum: dict[str, float]
+    ) -> str:
+        """Select best language using confidence-weighted scoring.
+
+        Args:
+            votes: Dictionary of vote counts per language
+            prob_sum: Dictionary of probability sums per language
+
+        Returns:
+            Best language code based on weighted scoring
+        """
+        # Calculate weighted scores for all languages
+        language_scores = {
+            lang: self._calculate_language_score(lang, votes, prob_sum)
+            for lang in votes
+        }
+
+        # Select language with highest weighted score
+        best_lang = max(language_scores.keys(), key=lambda x: language_scores[x])
+
+        logger.info(
+            f"Weighted language scores: {language_scores}, "
+            f"selected: '{best_lang}' (score={language_scores[best_lang]:.3f})"
+        )
+
+        return best_lang
 
     def _fallback_detection(
         self, audio_chunks: list[str]
@@ -144,8 +202,8 @@ class LanguageDetector:
             )
             return "en", 0.0, {"en": 1}, {"en": 0.0}
 
-        # Select best language
-        best_lang = max(votes, key=lambda lang: (votes[lang], prob_sum[lang]))
+        # Select best language using weighted scoring
+        best_lang = self._select_best_language_weighted(votes, prob_sum)
         mean_prob = prob_sum[best_lang] / votes[best_lang] if votes[best_lang] else 0
 
         logger.info(
