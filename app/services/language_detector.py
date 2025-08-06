@@ -80,8 +80,14 @@ class LanguageDetector:
                 )
 
                 lang = result["language"]
-                # Get probability, default to 1.0 if field is missing
-                prob = result.get("language_probs", {}).get(lang, 1.0)
+
+                # Skip if language has no probability information
+                if lang not in result.get("language_probs", {}):
+                    logger.debug(f"Language {lang} lacks confidence info - ignoring")
+                    continue
+
+                # Get probability, default to 0.0 if field is missing
+                prob = result.get("language_probs", {}).get(lang, 0.0)
 
                 logger.debug(f"Chunk result: language={lang}, probability={prob:.3f}")
 
@@ -182,8 +188,23 @@ class LanguageDetector:
             for lang in votes
         }
 
-        # Select language with highest weighted score
-        best_lang = max(language_scores.keys(), key=lambda x: language_scores[x])
+        # Select language with highest weighted score using robust tie-breaking
+        def _score_key(lang: str) -> tuple[float, float, int]:
+            """
+            Tie-breaking key function:
+            1. Highest weighted score
+            2. Highest average confidence
+            3. Most votes
+            """
+            vote_count = votes[lang]
+            avg_confidence = prob_sum[lang] / vote_count if vote_count else 0
+            return (
+                language_scores[lang],  # Primary: weighted score
+                avg_confidence,  # Tie-break 1: average confidence
+                vote_count,  # Tie-break 2: number of votes
+            )
+
+        best_lang = max(votes.keys(), key=_score_key)
 
         logger.info(
             f"Weighted language scores: {language_scores}, "
@@ -213,7 +234,13 @@ class LanguageDetector:
                 )
 
                 lang = result["language"]
-                prob = result.get("language_probs", {}).get(lang, 1.0)
+
+                # Skip if language has no probability information
+                if lang not in result.get("language_probs", {}):
+                    logger.debug(f"Language {lang} lacks confidence info - ignoring")
+                    continue
+
+                prob = result.get("language_probs", {}).get(lang, 0.0)
 
                 votes[lang] = votes.get(lang, 0) + 1
                 prob_sum[lang] = prob_sum.get(lang, 0) + prob
