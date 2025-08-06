@@ -49,6 +49,33 @@ class AppConfig(BaseSettings):
         alias="CONFIDENCE_WEIGHT",
         description="Confidence weighting factor for language detection scoring",
     )
+
+    # Audio quality filtering configuration
+    enable_quality_filtering: bool = Field(
+        default=True,
+        alias="ENABLE_QUALITY_FILTERING",
+        description="Enable audio chunk quality filtering for language detection",
+    )
+    min_chunk_rms: int = Field(
+        default=100,
+        alias="MIN_CHUNK_RMS",
+        description="Minimum RMS level for chunk quality validation",
+    )
+    min_chunk_duration_ms: int = Field(
+        default=1000,
+        alias="MIN_CHUNK_DURATION_MS",
+        description="Minimum chunk duration in milliseconds",
+    )
+    min_chunk_amplitude: int = Field(
+        default=1000,
+        alias="MIN_CHUNK_AMPLITUDE",
+        description="Minimum peak amplitude for chunk quality validation",
+    )
+    quality_fallback_threshold: float = Field(
+        default=0.5,
+        alias="QUALITY_FALLBACK_THRESHOLD",
+        description="Use all chunks if more than this fraction are filtered",
+    )
     max_file_size: int = Field(
         default=200 * 1024 * 1024, alias="MAX_FILE_SIZE"
     )  # 200MB

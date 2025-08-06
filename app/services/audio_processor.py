@@ -5,14 +5,18 @@ and sample extraction for language detection. It implements the exact
 audio processing logic from transcribe.py.
 """
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any, ClassVar, cast
 
 from pydub import AudioSegment, silence
 
+from app.core.config import get_settings
 from app.core.exceptions import AudioProcessingError
 from app.utils.transcribe_utils import cleanup_temp_files, export_chunk
+
+logger = logging.getLogger(__name__)
 
 
 class AudioProcessor:
@@ -50,6 +54,7 @@ class AudioProcessor:
     def __init__(self) -> None:
         """Initialize AudioProcessor."""
         self._temp_files: list[str] = []
+        self.settings = get_settings()
 
     def validate_audio_file(self, file_path: str | Path) -> None:
         """Validate audio file exists and has supported format.
@@ -256,6 +261,155 @@ class AudioProcessor:
                 f"Audio processing pipeline failed: {e!s}",
                 error_code="processing_pipeline_failed",
             ) from e
+
+    def validate_chunk_quality(
+        self, chunk_path: str | Path
+    ) -> tuple[bool, dict[str, Any]]:
+        """Validate if audio chunk has sufficient quality for language detection.
+
+        Checks multiple quality metrics including RMS level, dynamic range,
+        duration, and amplitude based on research from audio quality control tools.
+
+        Args:
+            chunk_path: Path to audio chunk file
+
+        Returns:
+            Tuple of (is_valid, quality_metrics_dict)
+
+        Raises:
+            AudioProcessingError: If chunk cannot be analyzed
+        """
+        try:
+            # Load the audio chunk
+            audio = AudioSegment.from_file(str(chunk_path))
+
+            # Calculate quality metrics
+            duration_ms = len(audio)
+            rms_level = audio.rms
+            max_amplitude = (
+                audio.max
+                if hasattr(audio, "max")
+                else max(audio.get_array_of_samples())
+            )
+
+            # Calculate dynamic range (difference between max and RMS in dB)
+            if rms_level > 0:
+                dynamic_range_db = 20 * (max_amplitude / rms_level if rms_level else 1)
+            else:
+                dynamic_range_db = 0
+
+            # Quality metrics for logging/debugging
+            quality_metrics = {
+                "duration_ms": duration_ms,
+                "rms_level": rms_level,
+                "max_amplitude": max_amplitude,
+                "dynamic_range_db": dynamic_range_db,
+            }
+
+            # Quality validation checks
+            checks = {
+                "duration": duration_ms >= self.settings.min_chunk_duration_ms,
+                "rms": rms_level >= self.settings.min_chunk_rms,
+                "amplitude": max_amplitude >= self.settings.min_chunk_amplitude,
+            }
+
+            # Add check results to metrics
+            quality_metrics.update(checks)
+
+            # Overall validity - all checks must pass
+            is_valid = all(checks.values())
+
+            logger.debug(
+                f"Chunk quality validation for {chunk_path}: "
+                f"valid={is_valid}, duration={duration_ms}ms, "
+                f"rms={rms_level}, amplitude={max_amplitude}, "
+                f"checks={checks}"
+            )
+
+            return is_valid, quality_metrics
+
+        except Exception as e:
+            logger.error(f"Failed to validate chunk quality for {chunk_path}: {e}")
+            raise AudioProcessingError(
+                f"Chunk quality validation failed: {e!s}",
+                error_code="quality_validation_failed",
+            ) from e
+
+    def filter_chunks_by_quality(
+        self, chunk_paths: list[str]
+    ) -> tuple[list[str], dict[str, Any]]:
+        """Filter audio chunks by quality, with safety fallback.
+
+        Args:
+            chunk_paths: List of paths to audio chunk files
+
+        Returns:
+            Tuple of (filtered_chunk_paths, filtering_stats)
+        """
+        if not self.settings.enable_quality_filtering:
+            logger.debug("Quality filtering disabled, using all chunks")
+            return chunk_paths, {
+                "filtering_enabled": False,
+                "total_chunks": len(chunk_paths),
+            }
+
+        valid_chunks = []
+        invalid_chunks = []
+        quality_stats = []
+
+        logger.info(f"Filtering {len(chunk_paths)} chunks by quality")
+
+        for chunk_path in chunk_paths:
+            try:
+                is_valid, metrics = self.validate_chunk_quality(chunk_path)
+                quality_stats.append(metrics)
+
+                if is_valid:
+                    valid_chunks.append(chunk_path)
+                else:
+                    invalid_chunks.append(chunk_path)
+                    logger.debug(f"Filtered out chunk {chunk_path}: {metrics}")
+
+            except Exception as e:
+                logger.warning(
+                    f"Could not validate chunk {chunk_path}, including it: {e}"
+                )
+                valid_chunks.append(
+                    chunk_path
+                )  # Include problematic chunks as fallback
+
+        # Safety fallback: if too many chunks filtered, use all chunks
+        filtered_ratio = len(invalid_chunks) / len(chunk_paths) if chunk_paths else 0
+
+        if filtered_ratio > self.settings.quality_fallback_threshold:
+            logger.warning(
+                f"Quality filtering removed {filtered_ratio:.1%} of chunks "
+                f"(>{self.settings.quality_fallback_threshold:.1%} threshold), "
+                f"using all chunks as fallback"
+            )
+            final_chunks = chunk_paths
+            used_fallback = True
+        else:
+            final_chunks = valid_chunks
+            used_fallback = False
+            logger.info(
+                f"Quality filtering: kept {len(valid_chunks)}/{len(chunk_paths)} "
+                f"chunks ({len(invalid_chunks)} filtered out)"
+            )
+
+        # Compile filtering statistics
+        filtering_stats = {
+            "filtering_enabled": True,
+            "total_chunks": len(chunk_paths),
+            "valid_chunks": len(valid_chunks),
+            "invalid_chunks": len(invalid_chunks),
+            "filtered_ratio": filtered_ratio,
+            "used_fallback": used_fallback,
+            "fallback_threshold": self.settings.quality_fallback_threshold,
+            "quality_stats": quality_stats,
+        }
+
+        return final_chunks, filtering_stats
 
     def create_temp_audio_file(self, audio: AudioSegment, format: str = "wav") -> str:
         """Create temporary audio file from AudioSegment.

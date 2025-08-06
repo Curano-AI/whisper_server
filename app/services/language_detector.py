@@ -6,11 +6,12 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from pydub import AudioSegment
 
 from app.core.config import get_settings
+from app.services.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,22 @@ class LanguageDetector:
         if min_prob is None:
             min_prob = self.settings.min_prob
 
+        # Filter chunks by quality before processing
+        quality_chunks, filtering_stats = self._filter_chunks_by_quality(audio_chunks)
+
+        logger.info(
+            f"Quality filtering: using {len(quality_chunks)}/{len(audio_chunks)} chunks"
+        )
+        if filtering_stats.get("used_fallback"):
+            logger.warning("Quality filtering used safety fallback - using all chunks")
+
         detector = self._load_detector_model()
 
         votes: dict[str, int] = {}
         prob_sum: dict[str, float] = {}
 
-        # Process each audio chunk
-        for wav_path in audio_chunks:
+        # Process each audio chunk (after quality filtering)
+        for wav_path in quality_chunks:
             try:
                 logger.debug(f"Processing audio chunk: {wav_path}")
 
@@ -106,6 +116,23 @@ class LanguageDetector:
         )
 
         return best_lang, mean_prob, votes, prob_sum
+
+    def _filter_chunks_by_quality(
+        self, chunk_paths: list[str]
+    ) -> tuple[list[str], dict[str, Any]]:
+        """Filter audio chunks by quality using AudioProcessor.
+
+        Args:
+            chunk_paths: List of paths to audio chunk files
+
+        Returns:
+            Tuple of (filtered_chunk_paths, filtering_stats)
+        """
+        processor = AudioProcessor()
+        try:
+            return processor.filter_chunks_by_quality(chunk_paths)
+        finally:
+            processor.cleanup()
 
     def _calculate_language_score(
         self, lang: str, votes: dict[str, int], prob_sum: dict[str, float]
