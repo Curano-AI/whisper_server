@@ -218,7 +218,7 @@ class TestAudioProcessor:
             "/tmp/chunk3.wav",
         ]
 
-        result = self.processor.extract_language_samples(mock_audio, 2000)
+        result = self.processor.extract_language_samples(mock_audio, 2000, num_chunks=3)
 
         assert len(result) == 3
         assert result == ["/tmp/chunk1.wav", "/tmp/chunk2.wav", "/tmp/chunk3.wav"]
@@ -232,8 +232,8 @@ class TestAudioProcessor:
         start_positions = [args[1] for args in call_args]
 
         # Expected positions: lead_ms=2000, dur_ms=60000
-        # Position calculation: {2000, 16333, 35666}
-        expected_starts = sorted([2000, 16333, 35666])
+        # For 3 chunks: Start=2000, Middle=26000, End=45000 (with offset)
+        expected_starts = [2000, 26000, 45000]
         assert start_positions == expected_starts
 
     @patch("app.services.audio_processor.export_chunk")
@@ -286,7 +286,7 @@ class TestAudioProcessor:
         assert result == (mock_audio, 1500, ["/tmp/chunk1.wav", "/tmp/chunk2.wav"])
         mock_load.assert_called_once_with("/test/audio.wav")
         mock_trim.assert_called_once_with(mock_audio)
-        mock_extract.assert_called_once_with(mock_audio, 1500)
+        mock_extract.assert_called_once_with(mock_audio, 1500, 6)
 
     @patch.object(AudioProcessor, "load_audio")
     def test_process_audio_for_language_detection_error(self, mock_load):
@@ -439,7 +439,7 @@ class TestAudioProcessorIntegration:
             assert isinstance(leading_silence, int)
             assert leading_silence >= 0
             assert isinstance(samples, list)
-            assert len(samples) == 3
+            assert len(samples) == 6  # Default is now 6 chunks
 
             # Verify all sample files exist
             for sample_path in samples:
