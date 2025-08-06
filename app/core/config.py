@@ -50,6 +50,28 @@ class AppConfig(BaseSettings):
         description="Confidence weighting factor for language detection scoring",
     )
 
+    # Enhanced language detection configuration
+    num_language_chunks: int = Field(
+        default=6,
+        alias="NUM_LANGUAGE_CHUNKS",
+        description="Number of audio chunks to sample for language detection",
+    )
+    min_language_confidence: float = Field(
+        default=0.3,
+        alias="MIN_LANGUAGE_CONFIDENCE",
+        description="Minimum confidence for initial language detection pass",
+    )
+    dynamic_threshold_enabled: bool = Field(
+        default=True,
+        alias="DYNAMIC_THRESHOLD_ENABLED",
+        description="Enable dynamic confidence threshold adjustment",
+    )
+    min_consensus_ratio: float = Field(
+        default=0.5,
+        alias="MIN_CONSENSUS_RATIO",
+        description="Minimum ratio of chunks agreeing on language",
+    )
+
     # Audio quality filtering configuration
     enable_quality_filtering: bool = Field(
         default=True,
