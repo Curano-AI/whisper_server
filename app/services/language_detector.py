@@ -161,10 +161,12 @@ class LanguageDetector:
                         isinstance(detection_result, tuple)
                         and len(detection_result) >= EXPECTED_DETECTION_TUPLE_SIZE
                     ):
-                        lang, lang_probs = detection_result[0], detection_result[1]
+                        lang, confidence = detection_result[0], detection_result[1]
+                        # Convert single confidence value to dictionary format
+                        lang_probs = {lang: confidence}
                         logger.info(
                             f"Chunk {i + 1} - Direct detection: "
-                            f"lang={lang}, probs={lang_probs}"
+                            f"lang={lang}, probs={confidence}"
                         )
                     else:
                         # Fallback to transcribe method
