@@ -131,11 +131,10 @@ class TestLanguageDetector:
 
             best_lang, mean_prob, votes, prob_sum = result
 
-            # With missing language_probs, the new implementation returns default
             assert best_lang == "en"
-            assert mean_prob == 0.0
+            assert mean_prob == 0.9
             assert votes == {"en": 1}
-            assert prob_sum == {"en": 0.0}
+            assert prob_sum == {"en": 0.9}
 
     @patch.object(LanguageDetector, "_load_detector_model")
     def test_detect_from_samples_transcription_error(self, mock_load_model):

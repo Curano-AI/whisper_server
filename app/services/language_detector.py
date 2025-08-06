@@ -146,20 +146,65 @@ class LanguageDetector:
             try:
                 logger.debug(f"Processing chunk {i + 1}/{len(chunk_paths)}: {wav_path}")
 
-                # Transcribe chunk to detect language
-                result = detector.transcribe(
-                    wav_path,
-                    batch_size=self.settings.get_detector_batch_size(),
-                    verbose=False,
-                )
+                try:
+                    from faster_whisper.audio import (  # noqa: PLC0415, RUF100
+                        decode_audio,
+                    )
 
-                lang = result.get("language")
+                    audio = decode_audio(wav_path)
+
+                    # Detect language with confidence scores
+                    detection_result = detector.model.detect_language(audio)
+
+                    EXPECTED_DETECTION_TUPLE_SIZE = 2
+                    if (
+                        isinstance(detection_result, tuple)
+                        and len(detection_result) >= EXPECTED_DETECTION_TUPLE_SIZE
+                    ):
+                        lang, lang_probs = detection_result[0], detection_result[1]
+                        logger.info(
+                            f"Chunk {i + 1} - Direct detection: "
+                            f"lang={lang}, probs={lang_probs}"
+                        )
+                    else:
+                        # Fallback to transcribe method
+                        result = detector.transcribe(
+                            wav_path,
+                            batch_size=self.settings.get_detector_batch_size(),
+                            verbose=False,
+                        )
+                        lang = result.get("language")
+                        lang_probs = result.get("language_probs", {})
+                        logger.info(
+                            f"Chunk {i + 1} - Transcribe result: "
+                            f"lang={lang}, has probs={bool(lang_probs)}"
+                        )
+
+                except Exception as e:
+                    logger.warning(
+                        f"Direct language detection failed: {e}, "
+                        "falling back to transcribe"
+                    )
+                    # Fallback to transcribe method
+                    result = detector.transcribe(
+                        wav_path,
+                        batch_size=self.settings.get_detector_batch_size(),
+                        verbose=False,
+                    )
+                    lang = result.get("language")
+                    lang_probs = result.get("language_probs", {})
+
                 if not lang:
                     logger.warning(f"No language detected in chunk {i + 1}")
                     continue
 
-                # Get all language probabilities
-                lang_probs = result.get("language_probs", {})
+                if not lang_probs and lang:
+                    default_confidence = 0.9
+                    lang_probs = {lang: default_confidence}
+                    logger.info(
+                        f"Chunk {i + 1}: {lang} detected without probs, "
+                        f"using default confidence {default_confidence}"
+                    )
 
                 # Check if detected language has probability
                 if lang in lang_probs:
@@ -180,27 +225,10 @@ class LanguageDetector:
                             f"(conf={confidence:.3f} < {threshold:.3f})"
                         )
                 else:
-                    # Language detected but no probability - use with caution
+                    # This should rarely happen now with our fallback
                     logger.warning(
-                        f"Chunk {i + 1}: {lang} detected but no confidence score"
+                        f"Chunk {i + 1}: {lang} detected but no confidence available"
                     )
-                    # Look for any language in probs that might match
-                    if lang_probs:
-                        # Use the highest probability language if available
-                        best_alt = max(lang_probs.items(), key=lambda x: x[1])
-                        if best_alt[1] >= threshold:
-                            predictions.append(
-                                {
-                                    "chunk_id": i,
-                                    "language": best_alt[0],
-                                    "confidence": best_alt[1],
-                                    "all_probs": lang_probs,
-                                }
-                            )
-                            logger.debug(
-                                f"Chunk {i + 1}: Using {best_alt[0]} "
-                                f"({best_alt[1]:.3f}) instead"
-                            )
 
             except Exception as e:
                 logger.error(f"Error processing chunk {i + 1}: {e}")
