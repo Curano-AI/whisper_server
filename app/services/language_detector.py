@@ -1,10 +1,18 @@
 """
-Language detection service using WhisperX detector model.
+Language detection service using WhisperX detector model
+with robust handling for poor quality audio.
+
+This implementation uses multiple strategies to ensure accurate language detection:
+1. Multi-chunk sampling (6 chunks by default)
+2. Dynamic confidence threshold adjustment
+3. Confidence-aware ensemble voting
+4. Progressive refinement with multiple passes
 """
 
 import logging
 import os
 import tempfile
+from collections import Counter
 from pathlib import Path
 from typing import Any, cast
 
@@ -17,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class LanguageDetector:
-    """Language detection service using WhisperX detector model."""
+    """Robust language detection service using WhisperX detector model."""
 
     def __init__(self):
         """Initialize the language detector."""
@@ -41,7 +49,10 @@ class LanguageDetector:
     def detect_from_samples(
         self, audio_chunks: list[str], min_prob: float | None = None
     ) -> tuple[str, float, dict[str, int], dict[str, float]]:
-        """Detect language from audio samples using exact transcribe.py logic.
+        """Detect language from audio samples with robust handling for poor quality.
+
+        Uses multiple passes with progressively refined thresholds to ensure
+        accurate detection even with noisy or poor quality audio.
 
         Args:
             audio_chunks: list of temporary WAV file paths
@@ -62,15 +73,78 @@ class LanguageDetector:
         if filtering_stats.get("used_fallback"):
             logger.warning("Quality filtering used safety fallback - using all chunks")
 
+        # First pass: Collect all predictions with lower threshold
+        initial_threshold = self.settings.min_language_confidence
+        all_predictions = self._collect_predictions(
+            quality_chunks, threshold=initial_threshold
+        )
+
+        if not all_predictions:
+            logger.warning(
+                "No predictions collected in first pass, trying without threshold"
+            )
+            all_predictions = self._collect_predictions(quality_chunks, threshold=0.0)
+
+        if not all_predictions:
+            logger.error("No valid predictions from any chunk")
+            return "en", 0.0, {"en": 1}, {"en": 0.0}
+
+        # Analyze predictions and determine dynamic threshold
+        dynamic_threshold = self._calculate_dynamic_threshold(all_predictions, min_prob)
+
+        # Second pass: Filter predictions with dynamic threshold
+        filtered_predictions = [
+            p for p in all_predictions if p["confidence"] >= dynamic_threshold
+        ]
+
+        if not filtered_predictions:
+            # If dynamic threshold filters everything, use top predictions
+            logger.warning(
+                f"Dynamic threshold {dynamic_threshold:.2f} too high, "
+                f"using top predictions"
+            )
+            sorted_predictions = sorted(
+                all_predictions, key=lambda x: x["confidence"], reverse=True
+            )
+            # Take predictions with confidence above median
+            median_conf = sorted_predictions[len(sorted_predictions) // 2]["confidence"]
+            filtered_predictions = [
+                p for p in all_predictions if p["confidence"] >= median_conf
+            ]
+
+        # Apply ensemble voting with confidence weighting
+        best_lang, mean_prob, votes, prob_sum = self._ensemble_voting(
+            filtered_predictions
+        )
+
+        # Language consistency check
+        consistency_score = self._check_language_consistency(filtered_predictions)
+
+        logger.info(
+            f"Language detection result: '{best_lang}' "
+            f"(confidence={mean_prob:.2f}, consistency={consistency_score:.2f}, "
+            f"votes={votes})"
+        )
+
+        # If consistency is low, run progressive refinement
+        if consistency_score < self.settings.min_consensus_ratio:
+            logger.info("Low consistency detected, running progressive refinement")
+            best_lang, mean_prob, votes, prob_sum = self._progressive_refinement(
+                quality_chunks, all_predictions, best_lang
+            )
+
+        return best_lang, mean_prob, votes, prob_sum
+
+    def _collect_predictions(
+        self, chunk_paths: list[str], threshold: float = 0.0
+    ) -> list[dict[str, Any]]:
+        """Collect all predictions from chunks with confidence above threshold."""
         detector = self._load_detector_model()
+        predictions = []
 
-        votes: dict[str, int] = {}
-        prob_sum: dict[str, float] = {}
-
-        # Process each audio chunk (after quality filtering)
-        for wav_path in quality_chunks:
+        for i, wav_path in enumerate(chunk_paths):
             try:
-                logger.debug(f"Processing audio chunk: {wav_path}")
+                logger.debug(f"Processing chunk {i + 1}/{len(chunk_paths)}: {wav_path}")
 
                 # Transcribe chunk to detect language
                 result = detector.transcribe(
@@ -79,193 +153,254 @@ class LanguageDetector:
                     verbose=False,
                 )
 
-                lang = result["language"]
-
-                # Skip if language has no probability information
-                if lang not in result.get("language_probs", {}):
-                    logger.debug(f"Language {lang} lacks confidence info - ignoring")
+                lang = result.get("language")
+                if not lang:
+                    logger.warning(f"No language detected in chunk {i + 1}")
                     continue
 
-                # Get probability, default to 0.0 if field is missing
-                prob = result.get("language_probs", {}).get(lang, 0.0)
+                # Get all language probabilities
+                lang_probs = result.get("language_probs", {})
 
-                logger.debug(f"Chunk result: language={lang}, probability={prob:.3f}")
-
-                # Filter by confidence threshold
-                if prob < min_prob:
-                    logger.debug(f"Filtering out {lang} (prob {prob:.3f} < {min_prob})")
-                    continue
-
-                # Accumulate votes and probability sums
-                votes[lang] = votes.get(lang, 0) + 1
-                prob_sum[lang] = prob_sum.get(lang, 0) + prob
+                # Check if detected language has probability
+                if lang in lang_probs:
+                    confidence = lang_probs[lang]
+                    if confidence >= threshold:
+                        predictions.append(
+                            {
+                                "chunk_id": i,
+                                "language": lang,
+                                "confidence": confidence,
+                                "all_probs": lang_probs,
+                            }
+                        )
+                        logger.debug(f"Chunk {i + 1}: {lang} ({confidence:.3f})")
+                    else:
+                        logger.debug(
+                            f"Chunk {i + 1}: {lang} filtered "
+                            f"(conf={confidence:.3f} < {threshold:.3f})"
+                        )
+                else:
+                    # Language detected but no probability - use with caution
+                    logger.warning(
+                        f"Chunk {i + 1}: {lang} detected but no confidence score"
+                    )
+                    # Look for any language in probs that might match
+                    if lang_probs:
+                        # Use the highest probability language if available
+                        best_alt = max(lang_probs.items(), key=lambda x: x[1])
+                        if best_alt[1] >= threshold:
+                            predictions.append(
+                                {
+                                    "chunk_id": i,
+                                    "language": best_alt[0],
+                                    "confidence": best_alt[1],
+                                    "all_probs": lang_probs,
+                                }
+                            )
+                            logger.debug(
+                                f"Chunk {i + 1}: Using {best_alt[0]} "
+                                f"({best_alt[1]:.3f}) instead"
+                            )
 
             except Exception as e:
-                logger.error(f"Error processing audio chunk {wav_path}: {e}")
+                logger.error(f"Error processing chunk {i + 1}: {e}")
                 continue
 
-        # If all languages were filtered out, run fallback detection
-        if not votes:
-            logger.info(
-                "All languages filtered out, running "
-                "fallback detection without threshold"
-            )
-            return self._fallback_detection(audio_chunks)
+        return predictions
 
-        # Select best language using confidence-weighted scoring
-        best_lang = self._select_best_language_weighted(votes, prob_sum)
-        mean_prob = prob_sum[best_lang] / votes[best_lang] if votes[best_lang] else 0
+    def _calculate_dynamic_threshold(
+        self, predictions: list[dict[str, Any]], base_threshold: float
+    ) -> float:
+        """Calculate dynamic threshold based on prediction distribution."""
+        if not predictions:
+            return base_threshold
+
+        confidences = [p["confidence"] for p in predictions]
+
+        # Calculate statistics
+        mean_conf = sum(confidences) / len(confidences)
+        max_conf = max(confidences)
+        min_conf = min(confidences)
+
+        # Sort for percentile calculation
+        sorted_conf = sorted(confidences)
+        percentile_25 = sorted_conf[len(sorted_conf) // 4]
+
+        # Dynamic threshold strategy
+        variance_threshold = 0.5
+        low_confidence_threshold = 0.5
+
+        if max_conf - min_conf > variance_threshold:
+            # High variance - use percentile-based threshold
+            dynamic_threshold = percentile_25
+        elif mean_conf < low_confidence_threshold:
+            # Low overall confidence - be more lenient
+            dynamic_threshold = min(base_threshold * 0.7, percentile_25)
+        else:
+            # Normal case - use base threshold or mean minus std
+            std_dev = (
+                sum((c - mean_conf) ** 2 for c in confidences) / len(confidences)
+            ) ** 0.5
+            dynamic_threshold = max(mean_conf - std_dev, base_threshold * 0.8)
+
+        # Ensure threshold is reasonable
+        dynamic_threshold = max(0.2, min(dynamic_threshold, 0.8))
 
         logger.info(
-            f"Language detection result: votes={votes}, "
-            f"mean_prob={mean_prob:.2f} → '{best_lang}'"
+            f"Dynamic threshold: {dynamic_threshold:.2f} "
+            f"(base={base_threshold:.2f}, mean={mean_conf:.2f}, "
+            f"range={min_conf:.2f}-{max_conf:.2f})"
+        )
+
+        return dynamic_threshold
+
+    def _ensemble_voting(
+        self, predictions: list[dict[str, Any]]
+    ) -> tuple[str, float, dict[str, int], dict[str, float]]:
+        """Apply ensemble voting with confidence weighting."""
+        votes: dict[str, int] = {}
+        prob_sum: dict[str, float] = {}
+        weighted_scores: dict[str, float] = {}
+
+        # Aggregate predictions
+        for pred in predictions:
+            lang = pred["language"]
+            conf = pred["confidence"]
+
+            votes[lang] = votes.get(lang, 0) + 1
+            prob_sum[lang] = prob_sum.get(lang, 0) + conf
+
+            # Calculate weighted score using confidence
+            weight = conf**self.settings.confidence_weight
+            weighted_scores[lang] = weighted_scores.get(lang, 0) + weight
+
+        # Select best language using weighted scores
+        if not weighted_scores:
+            return "en", 0.0, {"en": 1}, {"en": 0.0}
+
+        # Sort by weighted score, then by average confidence, then by votes
+        def score_key(lang: str) -> tuple[float, float, int]:
+            avg_conf = prob_sum[lang] / votes[lang] if votes[lang] else 0
+            return (weighted_scores[lang], avg_conf, votes[lang])
+
+        best_lang = max(weighted_scores.keys(), key=score_key)
+        mean_prob = prob_sum[best_lang] / votes[best_lang] if votes[best_lang] else 0
+
+        logger.debug(
+            f"Ensemble voting: {votes}, weighted_scores={weighted_scores}, "
+            f"selected='{best_lang}'"
         )
 
         return best_lang, mean_prob, votes, prob_sum
 
+    def _check_language_consistency(self, predictions: list[dict[str, Any]]) -> float:
+        """Check consistency of language predictions across chunks."""
+        if not predictions:
+            return 0.0
+
+        languages = [p["language"] for p in predictions]
+        language_counts = Counter(languages)
+
+        # Most common language and its ratio
+        most_common_lang, count = language_counts.most_common(1)[0]
+        consistency_ratio = count / len(predictions)
+
+        # Weighted consistency considering confidence
+        weighted_consistency = 0.0
+        total_weight = 0.0
+
+        for pred in predictions:
+            weight = pred["confidence"]
+            if pred["language"] == most_common_lang:
+                weighted_consistency += weight
+            total_weight += weight
+
+        if total_weight > 0:
+            weighted_consistency /= total_weight
+
+        # Combined consistency score
+        consistency_score = (consistency_ratio + weighted_consistency) / 2
+
+        logger.debug(
+            f"Language consistency: {consistency_score:.2f} "
+            f"(ratio={consistency_ratio:.2f}, weighted={weighted_consistency:.2f})"
+        )
+
+        return consistency_score
+
+    def _progressive_refinement(
+        self,
+        chunk_paths: list[str],
+        initial_predictions: list[dict[str, Any]],
+        initial_best: str,  # noqa: ARG002
+    ) -> tuple[str, float, dict[str, int], dict[str, float]]:
+        """Progressively refine language detection with focused analysis."""
+        logger.info("Running progressive refinement for language detection")
+
+        # Identify top competing languages
+        language_scores = {}
+        for pred in initial_predictions:
+            lang = pred["language"]
+            score = pred["confidence"]
+            language_scores[lang] = language_scores.get(lang, 0) + score
+
+        # Get top 2-3 languages
+        top_languages = sorted(
+            language_scores.items(), key=lambda x: x[1], reverse=True
+        )[:3]
+
+        logger.info(f"Top competing languages: {top_languages}")
+
+        # Re-analyze with focus on distinguishing between top languages
+        refined_predictions = []
+        detector = self._load_detector_model()
+
+        for i, wav_path in enumerate(chunk_paths[:3]):  # Focus on first 3 chunks
+            try:
+                # Try multiple times with different parameters
+                for attempt in range(2):
+                    result = detector.transcribe(
+                        wav_path,
+                        batch_size=1,  # Smaller batch for more careful analysis
+                        verbose=False,
+                    )
+
+                    lang_probs = result.get("language_probs", {})
+
+                    # Check probabilities for top languages
+                    min_refinement_prob = 0.1
+                    for lang, _ in top_languages:
+                        if (
+                            lang in lang_probs
+                            and lang_probs[lang] > min_refinement_prob
+                        ):
+                            refined_predictions.append(
+                                {
+                                    "chunk_id": f"{i}-{attempt}",
+                                    "language": lang,
+                                    "confidence": lang_probs[lang],
+                                    "all_probs": lang_probs,
+                                }
+                            )
+
+            except Exception as e:
+                logger.error(f"Error in refinement for chunk {i}: {e}")
+
+        # Combine with initial predictions
+        all_predictions = initial_predictions + refined_predictions
+
+        # Final ensemble voting
+        return self._ensemble_voting(all_predictions)
+
     def _filter_chunks_by_quality(
         self, chunk_paths: list[str]
     ) -> tuple[list[str], dict[str, Any]]:
-        """Filter audio chunks by quality using AudioProcessor.
-
-        Args:
-            chunk_paths: List of paths to audio chunk files
-
-        Returns:
-            Tuple of (filtered_chunk_paths, filtering_stats)
-        """
+        """Filter audio chunks by quality using AudioProcessor."""
         processor = AudioProcessor()
         try:
             return processor.filter_chunks_by_quality(chunk_paths)
         finally:
             processor.cleanup()
-
-    def _calculate_language_score(
-        self, lang: str, votes: dict[str, int], prob_sum: dict[str, float]
-    ) -> float:
-        """Calculate confidence-weighted score for a language.
-
-        Uses the formula: (avg_confidence ^ confidence_weight) * vote_count
-        This heavily favors high confidence while still considering vote consistency.
-
-        Args:
-            lang: Language code
-            votes: Dictionary of vote counts per language
-            prob_sum: Dictionary of probability sums per language
-
-        Returns:
-            Weighted score for the language
-        """
-        vote_count = votes[lang]
-        avg_confidence = prob_sum[lang] / vote_count
-
-        # Weighted score: confidence^weight * vote_count
-        # This heavily favors high confidence while considering vote consistency
-        weighted_score = (avg_confidence**self.settings.confidence_weight) * vote_count
-
-        logger.debug(
-            f"Language {lang}: votes={vote_count}, avg_conf={avg_confidence:.3f}, "
-            f"weighted_score={weighted_score:.3f}"
-        )
-
-        return weighted_score
-
-    def _select_best_language_weighted(
-        self, votes: dict[str, int], prob_sum: dict[str, float]
-    ) -> str:
-        """Select best language using confidence-weighted scoring.
-
-        Args:
-            votes: Dictionary of vote counts per language
-            prob_sum: Dictionary of probability sums per language
-
-        Returns:
-            Best language code based on weighted scoring
-        """
-        # Calculate weighted scores for all languages
-        language_scores = {
-            lang: self._calculate_language_score(lang, votes, prob_sum)
-            for lang in votes
-        }
-
-        # Select language with highest weighted score using robust tie-breaking
-        def _score_key(lang: str) -> tuple[float, float, int]:
-            """
-            Tie-breaking key function:
-            1. Highest weighted score
-            2. Highest average confidence
-            3. Most votes
-            """
-            vote_count = votes[lang]
-            avg_confidence = prob_sum[lang] / vote_count if vote_count else 0
-            return (
-                language_scores[lang],  # Primary: weighted score
-                avg_confidence,  # Tie-break 1: average confidence
-                vote_count,  # Tie-break 2: number of votes
-            )
-
-        best_lang = max(votes.keys(), key=_score_key)
-
-        logger.info(
-            f"Weighted language scores: {language_scores}, "
-            f"selected: '{best_lang}' (score={language_scores[best_lang]:.3f})"
-        )
-
-        return best_lang
-
-    def _fallback_detection(
-        self, audio_chunks: list[str]
-    ) -> tuple[str, float, dict[str, int], dict[str, float]]:
-        """Fallback detection without probability filtering."""
-        logger.info("Running fallback language detection without probability threshold")
-
-        detector = self._load_detector_model()
-
-        votes: dict[str, int] = {}
-        prob_sum: dict[str, float] = {}
-
-        # Process chunks again without probability filtering
-        for wav_path in audio_chunks:
-            try:
-                result = detector.transcribe(
-                    wav_path,
-                    batch_size=self.settings.get_detector_batch_size(),
-                    verbose=False,
-                )
-
-                lang = result["language"]
-
-                # Skip if language has no probability information
-                if lang not in result.get("language_probs", {}):
-                    logger.debug(f"Language {lang} lacks confidence info - ignoring")
-                    continue
-
-                prob = result.get("language_probs", {}).get(lang, 0.0)
-
-                votes[lang] = votes.get(lang, 0) + 1
-                prob_sum[lang] = prob_sum.get(lang, 0) + prob
-
-            except Exception as e:
-                logger.error(f"Error in fallback detection for {wav_path}: {e}")
-                continue
-
-        if not votes:
-            # Ultimate fallback - return English
-            logger.warning(
-                "No language detected even in fallback, defaulting to English"
-            )
-            return "en", 0.0, {"en": 1}, {"en": 0.0}
-
-        # Select best language using weighted scoring
-        best_lang = self._select_best_language_weighted(votes, prob_sum)
-        mean_prob = prob_sum[best_lang] / votes[best_lang] if votes[best_lang] else 0
-
-        logger.info(
-            f"Fallback detection result: votes={votes}, "
-            f"mean_prob={mean_prob:.2f} → '{best_lang}'"
-        )
-
-        return best_lang, mean_prob, votes, prob_sum
 
     def detect_language(
         self, audio: AudioSegment, lead_ms: int = 0, min_prob: float | None = None
@@ -280,32 +415,23 @@ class LanguageDetector:
         Returns:
             tuple of (best_language, mean_probability, votes_dict, prob_sum_dict)
         """
-        dur_ms = len(audio)
+        # Create more chunks for robust detection
+        num_chunks = self.settings.num_language_chunks
+        processor = AudioProcessor()
+        chunks = []  # Initialize to avoid UnboundLocalError
 
-        # Calculate strategic sample positions
-        starts = {
-            lead_ms,  # After silence trimming
-            max(lead_ms + (dur_ms - lead_ms) // 3 - 5_000, lead_ms),  # 1/3 position
-            max(lead_ms + 2 * (dur_ms - lead_ms) // 3 - 5_000, lead_ms),  # 2/3 position
-        }
-
-        logger.info(
-            f"Creating language detection samples at positions: {sorted(starts)}"
-        )
-
-        # Export audio chunks
-        chunks = []
         try:
-            for start_ms in sorted(starts):
-                chunk_path = self._export_chunk(audio, start_ms)
-                chunks.append(chunk_path)
+            chunks = processor.extract_language_samples(audio, lead_ms, num_chunks)
+            logger.info(f"Created {len(chunks)} chunks for language detection")
 
             # Detect language from samples
             return self.detect_from_samples(chunks, min_prob)
 
         finally:
             # Clean up temporary files
-            self._cleanup_chunks(chunks)
+            processor.cleanup()
+            if hasattr(self, "_cleanup_chunks") and chunks:
+                self._cleanup_chunks(chunks)
 
     def _export_chunk(
         self, audio: AudioSegment, start_ms: int, duration: int = 10_000

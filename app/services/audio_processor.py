@@ -161,16 +161,17 @@ class AudioProcessor:
             ) from e
 
     def extract_language_samples(
-        self, audio: AudioSegment, leading_silence_ms: int
+        self, audio: AudioSegment, leading_silence_ms: int, num_chunks: int = 3
     ) -> list[str]:
         """Extract strategic audio samples for language detection.
 
-        Creates 3 audio samples at strategic positions using the exact logic
-        from transcribe.py for language detection.
+        Creates multiple audio samples at strategic positions for robust
+        language detection, especially for poor quality audio.
 
         Args:
             audio: Original audio (before trimming)
             leading_silence_ms: Amount of leading silence that was trimmed
+            num_chunks: Number of chunks to extract (default: 3)
 
         Returns:
             List of temporary WAV file paths
@@ -181,39 +182,53 @@ class AudioProcessor:
         try:
             dur_ms = len(audio)
             lead_ms = leading_silence_ms
+            available_duration = dur_ms - lead_ms
 
-            # Exact logic from transcribe.py for sample positions
-            # Calculate the three positions, ensuring they're different
-            pos1 = lead_ms
-            pos2 = max(lead_ms + (dur_ms - lead_ms) // 3 - self.CHUNK_OFFSET, lead_ms)
-            pos3 = max(
-                lead_ms + 2 * (dur_ms - lead_ms) // 3 - self.CHUNK_OFFSET, lead_ms
-            )
+            # Calculate positions for chunks, distributed evenly
+            positions = []
 
-            # For very short audio, spread positions evenly
-            if dur_ms <= self.SHORT_AUDIO_THRESHOLD:  # Less than 15 seconds
-                available_duration = dur_ms - lead_ms
-                if available_duration > 0:
-                    pos2 = lead_ms + available_duration // 3
-                    pos3 = lead_ms + 2 * available_duration // 3
-                else:
-                    pos2 = lead_ms
-                    pos3 = lead_ms
+            if num_chunks == 1:
+                positions = [lead_ms]
+            elif available_duration <= self.SHORT_AUDIO_THRESHOLD:
+                # For very short audio, spread positions evenly
+                for i in range(num_chunks):
+                    pos = lead_ms + (i * available_duration) // num_chunks
+                    positions.append(pos)
+            else:
+                # For longer audio, distribute chunks strategically
+                # Include start, end, and evenly distributed middle positions
+                for i in range(num_chunks):
+                    if i == 0:
+                        # Start position
+                        pos = lead_ms
+                    elif i == num_chunks - 1:
+                        # End position with offset
+                        pos = max(
+                            dur_ms - self.CHUNK_DURATION - self.CHUNK_OFFSET, lead_ms
+                        )
+                    else:
+                        # Middle positions
+                        segment_size = available_duration / (num_chunks - 1)
+                        pos = lead_ms + int(i * segment_size) - self.CHUNK_OFFSET
+                        pos = max(pos, lead_ms)
 
-            # Use list to maintain order and allow duplicates if needed
-            positions = [pos1, pos2, pos3]
+                    positions.append(pos)
 
             # Create chunks at the positions
             chunks = []
-            for chunk_start_ms in positions:
+            for i, chunk_start_ms in enumerate(positions):
                 # Ensure we don't go beyond audio duration
-                actual_start_ms = chunk_start_ms
-                if chunk_start_ms >= dur_ms:
-                    actual_start_ms = max(0, dur_ms - self.CHUNK_DURATION)
+                actual_start_ms = min(
+                    chunk_start_ms, max(0, dur_ms - self.CHUNK_DURATION)
+                )
 
                 chunk_path = export_chunk(audio, actual_start_ms, self.CHUNK_DURATION)
                 chunks.append(chunk_path)
                 self._temp_files.append(chunk_path)
+
+                logger.debug(
+                    f"Created chunk {i + 1}/{num_chunks} at position {actual_start_ms}ms"
+                )
 
             return chunks
 
@@ -249,7 +264,11 @@ class AudioProcessor:
             _, leading_silence_ms = self.trim_leading_silence(audio)
 
             # Extract language detection samples
-            sample_paths = self.extract_language_samples(audio, leading_silence_ms)
+            # Use configured number of chunks for robust detection
+            num_chunks = self.settings.num_language_chunks
+            sample_paths = self.extract_language_samples(
+                audio, leading_silence_ms, num_chunks
+            )
 
             return audio, leading_silence_ms, sample_paths
 
