@@ -109,7 +109,7 @@ class TestLanguageDetector:
 
     @patch.object(LanguageDetector, "_load_detector_model")
     def test_detect_from_samples_missing_language_probs(self, mock_load_model):
-        """Test handling missing language_probs field."""
+        """Test handling missing language_probs field triggers fallback detection."""
         mock_detector = Mock()
         mock_load_model.return_value = mock_detector
 
@@ -117,14 +117,21 @@ class TestLanguageDetector:
         mock_detector.transcribe.return_value = {"language": "en"}
 
         audio_chunks = ["/tmp/chunk1.wav"]
-        result = self.detector.detect_from_samples(audio_chunks, min_prob=0.6)
 
-        best_lang, mean_prob, votes, prob_sum = result
+        # Mock fallback detection since chunks without probs are filtered out
+        with patch.object(self.detector, "_fallback_detection") as mock_fallback:
+            mock_fallback.return_value = ("en", 0.0, {"en": 1}, {"en": 0.0})
 
-        assert best_lang == "en"
-        assert mean_prob == 1.0  # Default probability
-        assert votes == {"en": 1}
-        assert prob_sum == {"en": 1.0}
+            result = self.detector.detect_from_samples(audio_chunks, min_prob=0.6)
+
+            # Should trigger fallback detection
+            mock_fallback.assert_called_once_with(audio_chunks)
+
+            best_lang, mean_prob, votes, prob_sum = result
+            assert best_lang == "en"
+            assert mean_prob == 0.0  # Fallback returns 0.0 when no probs available
+            assert votes == {"en": 1}
+            assert prob_sum == {"en": 0.0}
 
     @patch.object(LanguageDetector, "_load_detector_model")
     def test_detect_from_samples_transcription_error(self, mock_load_model):
