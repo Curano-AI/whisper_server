@@ -12,6 +12,10 @@ class Word(BaseModel):
     word: str = Field(..., description="The text content of the word")
     start: float = Field(..., description="Start time of the word in seconds")
     end: float = Field(..., description="End time of the word in seconds")
+    speaker: str | None = Field(
+        default=None,
+        description="Speaker ID (if diarization enabled)",
+    )
 
 
 class TranscriptionSegment(BaseModel):
@@ -33,6 +37,9 @@ class TranscriptionSegment(BaseModel):
     no_speech_prob: float = Field(..., description="Probability of no speech")
     words: list[Word] | None = Field(
         default=None, description="Word-level timestamps (if requested)"
+    )
+    speaker: str | None = Field(
+        default=None, description="Speaker ID (if diarization enabled)"
     )
 
 

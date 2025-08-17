@@ -13,6 +13,7 @@ from app.models.responses import (
     VerboseTranscriptionResponse,
 )
 from app.services.audio_processor import AudioProcessor
+from app.services.diarization import DiarizationService
 from app.services.language_detector import LanguageDetector
 from app.services.model_manager import ModelManager
 from app.utils.transcribe_utils import clean, get_suppress_tokens, ts
@@ -33,11 +34,13 @@ class TranscriptionService:
         audio_processor: AudioProcessor | None = None,
         language_detector: LanguageDetector | None = None,
         model_manager: ModelManager | None = None,
+        diarization_service: DiarizationService | None = None,
     ) -> None:
         self.settings = get_settings()
         self.audio_processor = audio_processor or AudioProcessor()
         self.language_detector = language_detector or LanguageDetector()
         self.model_manager = model_manager or ModelManager()
+        self.diarization_service = diarization_service or DiarizationService()
 
     # AICODE-NOTE: ASR and VAD option defaults come from transcribe.py via AppConfig
     def _build_asr_options(self, request: TranscriptionRequest) -> dict[str, Any]:
@@ -68,7 +71,13 @@ class TranscriptionService:
         for i, seg in enumerate(segments, 1):
             lines.append(str(i))
             lines.append(f"{ts(seg['start'])} --> {ts(seg['end'])}")
-            lines.append(clean(seg["text"]))
+
+            # Add speaker label if available
+            text = clean(seg["text"])
+            if seg.get("speaker"):
+                text = f"[{seg['speaker']}] {text}"
+
+            lines.append(text)
             lines.append("")
         return "\n".join(lines)
 
@@ -76,7 +85,13 @@ class TranscriptionService:
         lines = ["WEBVTT", ""]
         for seg in segments:
             lines.append(f"{ts(seg['start'])} --> {ts(seg['end'])}")
-            lines.append(clean(seg["text"]))
+
+            # Add speaker label if available
+            text = clean(seg["text"])
+            if seg.get("speaker"):
+                text = f"[{seg['speaker']}] {text}"
+
+            lines.append(text)
             lines.append("")
         return "\n".join(lines)
 
@@ -128,6 +143,11 @@ class TranscriptionService:
                 sample_paths
             )
 
+            # Speaker diarization (if enabled)
+            diarization = None
+            if request.enable_diarization:
+                diarization = self.diarization_service.diarize(file_path, request)
+
             # Build options
             asr_opts = self._build_asr_options(request)
             vad_opts = self._build_vad_options(request)
@@ -143,6 +163,21 @@ class TranscriptionService:
                 language=language,
                 verbose=False,
             )
+
+            # Assign speakers to segments and words if diarization was performed
+            if diarization is not None:
+                if "segments" in result:
+                    result["segments"] = (
+                        self.diarization_service.assign_speakers_to_segments(
+                            result["segments"], diarization
+                        )
+                    )
+                if "word_segments" in result:
+                    result["word_segments"] = (
+                        self.diarization_service.assign_speakers_to_words(
+                            result["word_segments"], diarization
+                        )
+                    )
 
             return self._format_response(
                 result, language, request.response_format or "json"

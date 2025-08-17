@@ -57,6 +57,21 @@ async def create_transcription(
     vad_options: dict[str, Any] | None = Form(
         default=None, description="Voice Activity Detection options"
     ),
+    enable_diarization: bool = Form(
+        default=False, description="Enable speaker diarization"
+    ),
+    min_speakers: int | None = Form(
+        default=None, ge=1, le=20, description="Minimum number of speakers"
+    ),
+    max_speakers: int | None = Form(
+        default=None, ge=1, le=20, description="Maximum number of speakers"
+    ),
+    num_speakers: int | None = Form(
+        default=None, ge=1, le=20, description="Exact number of speakers (if known)"
+    ),
+    hf_token: str | None = Form(
+        default=None, description="HuggingFace token for diarization models"
+    ),
     service: TranscriptionService = Depends(get_transcription_service),
     settings: AppConfig = Depends(get_settings),
 ) -> Response | TranscriptionOutput:
@@ -113,6 +128,11 @@ async def create_transcription(
         beam_size=beam_size,
         suppress_tokens=suppress_tokens,
         vad_options=vad_options,
+        enable_diarization=enable_diarization,
+        min_speakers=min_speakers,
+        max_speakers=max_speakers,
+        num_speakers=num_speakers,
+        hf_token=hf_token,
     )
 
     data = await request.file.read()

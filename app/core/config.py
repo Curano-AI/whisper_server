@@ -141,6 +141,33 @@ class AppConfig(BaseSettings):
         default=["дима торжок", "dima torzok", "dima torzhok", "субтитры подогнал"]
     )
 
+    # Diarization configuration
+    enable_diarization: bool = Field(
+        default=False,
+        alias="ENABLE_DIARIZATION",
+        description="Enable speaker diarization by default",
+    )
+    hf_token: str | None = Field(
+        default=None,
+        alias="HF_TOKEN",
+        description="HuggingFace token for diarization models",
+    )
+    diarization_model: str = Field(
+        default="pyannote/speaker-diarization-3.1",
+        alias="DIARIZATION_MODEL",
+        description="Diarization model to use",
+    )
+    default_min_speakers: int = Field(
+        default=1,
+        alias="DEFAULT_MIN_SPEAKERS",
+        description="Default minimum number of speakers",
+    )
+    default_max_speakers: int = Field(
+        default=10,
+        alias="DEFAULT_MAX_SPEAKERS",
+        description="Default maximum number of speakers",
+    )
+
     # Logging configuration
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_format: str = Field(

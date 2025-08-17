@@ -40,6 +40,23 @@ class TranscriptionRequest(BaseModel):
         default=None, description="Voice Activity Detection options"
     )
 
+    # Speaker diarization parameters
+    enable_diarization: bool = Field(
+        default=False, description="Enable speaker diarization"
+    )
+    min_speakers: int | None = Field(
+        default=None, ge=1, le=20, description="Minimum number of speakers"
+    )
+    max_speakers: int | None = Field(
+        default=None, ge=1, le=20, description="Maximum number of speakers"
+    )
+    num_speakers: int | None = Field(
+        default=None, ge=1, le=20, description="Exact number of speakers (if known)"
+    )
+    hf_token: str | None = Field(
+        default=None, description="HuggingFace token for diarization models"
+    )
+
     @field_validator("response_format")
     @classmethod
     def validate_response_format(cls, v):
