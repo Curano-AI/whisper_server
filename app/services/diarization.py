@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
+import tempfile
 from typing import TYPE_CHECKING, Any
 
 from app.core.config import get_settings
@@ -95,6 +97,43 @@ class DiarizationService:
 
         return kwargs
 
+    def _convert_to_wav(self, file_path: str | Path) -> str:
+        """
+        Convert audio file to WAV format for pyannote compatibility.
+
+        Returns:
+            Path to temporary WAV file
+        """
+        try:
+            from pydub import AudioSegment  # noqa: PLC0415, RUF100
+
+            # Load audio with pydub (supports many formats)
+            audio = AudioSegment.from_file(str(file_path))
+
+            # Create temporary WAV file
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
+                wav_path = tmp_wav.name
+
+            # Export to WAV format (16kHz, mono, 16-bit)
+            audio = audio.set_frame_rate(16000).set_channels(1)
+            audio.export(wav_path, format="wav")
+
+            logger.info("Converted %s to WAV format: %s", file_path, wav_path)
+            return wav_path
+
+        except ImportError as exc:
+            raise TranscriptionError(
+                "pydub not available for audio conversion. "
+                "Audio file must be in WAV format.",
+                error_code="missing_dependency",
+            ) from exc
+        except Exception as exc:
+            logger.error("Failed to convert audio to WAV: %s", exc)
+            raise TranscriptionError(
+                f"Failed to convert audio format: {exc}",
+                error_code="audio_conversion_failed",
+            ) from exc
+
     def diarize(self, file_path: str | Path, request: TranscriptionRequest) -> Any:
         """
         Perform speaker diarization on audio file.
@@ -105,17 +144,21 @@ class DiarizationService:
         if not request.enable_diarization:
             return None
 
+        wav_path = None
         try:
             hf_token = self._get_hf_token(request)
             pipeline = self._load_pipeline(hf_token)
 
-            logger.info("Running speaker diarization on %s", file_path)
+            # Convert to WAV format for pyannote compatibility
+            wav_path = self._convert_to_wav(file_path)
+
+            logger.info("Running speaker diarization on %s", wav_path)
 
             # Build diarization parameters
             diarization_kwargs = self._build_diarization_kwargs(request)
 
             # Run diarization
-            diarization = pipeline(str(file_path), **diarization_kwargs)
+            diarization = pipeline(wav_path, **diarization_kwargs)
 
             logger.info(
                 "Diarization completed. Found %d speakers", len(diarization.labels())
@@ -124,11 +167,12 @@ class DiarizationService:
             return diarization
 
         except Exception as exc:
-            logger.error("Diarization failed: %s", exc)
-            raise TranscriptionError(
-                f"Speaker diarization failed: {exc}",
-                error_code="diarization_failed",
-            ) from exc
+            logger.warning("Diarization failed: %s", exc)
+            return None
+        finally:
+            if wav_path and wav_path != str(file_path):
+                with contextlib.suppress(OSError):
+                    os.unlink(wav_path)
 
     def assign_speakers_to_segments(
         self, segments: list[dict[str, Any]], diarization: Any

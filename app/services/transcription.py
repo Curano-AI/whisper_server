@@ -146,7 +146,13 @@ class TranscriptionService:
             # Speaker diarization (if enabled)
             diarization = None
             if request.enable_diarization:
-                diarization = self.diarization_service.diarize(file_path, request)
+                try:
+                    diarization = self.diarization_service.diarize(file_path, request)
+                except Exception as exc:
+                    logger.warning(
+                        "Diarization failed, continuing without speaker labels: %s", exc
+                    )
+                    diarization = None
 
             # Build options
             asr_opts = self._build_asr_options(request)
