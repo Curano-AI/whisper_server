@@ -207,9 +207,17 @@ class DiarizationService:
                 max_overlap = 0.0
 
                 for turn, _, speaker in diarization.itertracks(yield_label=True):
-                    overlap_duration = (
-                        seg.intersect(turn).duration if seg.overlaps(turn) else 0.0
-                    )
+                    try:
+                        if seg.overlaps(turn):
+                            overlap_duration = seg.intersect(turn).duration
+                        else:
+                            overlap_duration = 0.0
+                    except Exception:
+                        # Fallback: calculate overlap manually
+                        overlap_start = max(start_time, turn.start)
+                        overlap_end = min(end_time, turn.end)
+                        overlap_duration = max(0.0, overlap_end - overlap_start)
+
                     if overlap_duration > max_overlap:
                         max_overlap = overlap_duration
                         best_speaker = speaker
@@ -259,9 +267,17 @@ class DiarizationService:
                 max_overlap = 0.0
 
                 for turn, _, speaker in diarization.itertracks(yield_label=True):
-                    overlap_duration = (
-                        seg.intersect(turn).duration if seg.overlaps(turn) else 0.0
-                    )
+                    try:
+                        if seg.overlaps(turn):
+                            overlap_duration = seg.intersect(turn).duration
+                        else:
+                            overlap_duration = 0.0
+                    except Exception:
+                        # Fallback: calculate overlap manually
+                        overlap_start = max(start_time, turn.start)
+                        overlap_end = min(end_time, turn.end)
+                        overlap_duration = max(0.0, overlap_end - overlap_start)
+
                     if overlap_duration > max_overlap:
                         max_overlap = overlap_duration
                         best_speaker = speaker
